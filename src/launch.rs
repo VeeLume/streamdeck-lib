@@ -1,5 +1,5 @@
 // launch.rs
-use std::{ env, ffi::OsString, fmt };
+use std::{env, ffi::OsString, fmt};
 
 /// Values passed by Stream Deck on launch.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -41,7 +41,8 @@ impl RunConfig {
 
     /// Set a custom websocket URL builder function.
     pub fn with_url_fn<F>(mut self, url_fn: F) -> Self
-        where F: Fn(u16) -> String + Send + Sync + 'static
+    where
+        F: Fn(u16) -> String + Send + Sync + 'static,
     {
         self.url_fn = std::sync::Arc::new(url_fn);
         self
@@ -89,15 +90,17 @@ pub fn parse_launch_args() -> Result<LaunchArgs, LaunchArgError> {
 }
 
 /// Parse from any iterator of OsString (nice for unit tests).
-pub fn parse_from<I>(it: I) -> Result<LaunchArgs, LaunchArgError> where I: Iterator<Item = OsString> {
+pub fn parse_from<I>(it: I) -> Result<LaunchArgs, LaunchArgError>
+where
+    I: Iterator<Item = OsString>,
+{
     // Collect into Strings once (Stream Deck doesn’t pass weird encodings).
     let args: Vec<String> = it.map(|s| s.to_string_lossy().into_owned()).collect();
 
     let port_str = value_after(&args, "-port").ok_or(LaunchArgError::MissingPort)?;
     let plugin_uuid = value_after(&args, "-pluginUUID").ok_or(LaunchArgError::MissingPluginUUID)?;
-    let register_event = value_after(&args, "-registerEvent").ok_or(
-        LaunchArgError::MissingRegisterEvent
-    )?;
+    let register_event =
+        value_after(&args, "-registerEvent").ok_or(LaunchArgError::MissingRegisterEvent)?;
 
     let port = port_str
         .parse::<u16>()

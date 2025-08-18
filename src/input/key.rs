@@ -4,9 +4,9 @@
 
 use std::fmt;
 
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
-use super::types::{ Scan, InputStep };
+use super::types::{InputStep, Scan};
 
 /// Typed keys. Add more as you need; `Custom` lets you provide raw scancodes.
 /// Mapping is Windows-only right now (guarded with #[cfg(windows)]).
@@ -143,8 +143,9 @@ pub enum Key {
 impl fmt::Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Key::Custom { scan, extended } =>
-                write!(f, "Custom(scan: {}, extended: {})", scan, extended),
+            Key::Custom { scan, extended } => {
+                write!(f, "Custom(scan: {}, extended: {})", scan, extended)
+            }
             _ => write!(f, "{:?}", self),
         }
     }
@@ -162,14 +163,14 @@ impl Key {
     pub fn is_modifier(self) -> bool {
         matches!(
             self,
-            Key::LShift |
-                Key::RShift |
-                Key::LCtrl |
-                Key::RCtrl |
-                Key::LAlt |
-                Key::RAlt |
-                Key::LWin |
-                Key::RWin
+            Key::LShift
+                | Key::RShift
+                | Key::LCtrl
+                | Key::RCtrl
+                | Key::LAlt
+                | Key::RAlt
+                | Key::LWin
+                | Key::RWin
         )
     }
 

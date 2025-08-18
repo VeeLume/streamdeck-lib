@@ -1,5 +1,5 @@
 pub mod types;
-pub use types::{ Scan, MouseButton, InputStep };
+pub use types::{InputStep, MouseButton, Scan};
 
 pub mod key;
 pub use key::Key;
@@ -47,7 +47,10 @@ impl<S: InputSynth + ?Sized> Executor<S> {
 
     fn new_inner(
         synth: Arc<S>,
-        (tx, rx): (crossbeam_channel::Sender<InputStep>, crossbeam_channel::Receiver<InputStep>),
+        (tx, rx): (
+            crossbeam_channel::Sender<InputStep>,
+            crossbeam_channel::Receiver<InputStep>,
+        ),
     ) -> Self {
         let s2 = Arc::clone(&synth);
         let join = std::thread::spawn(move || {
@@ -55,7 +58,11 @@ impl<S: InputSynth + ?Sized> Executor<S> {
                 let _ = s2.send_step(&step);
             }
         });
-        Self { tx, join: Some(join), synth }
+        Self {
+            tx,
+            join: Some(join),
+            synth,
+        }
     }
 
     /// Queue a single step (fire-and-forget).
@@ -64,7 +71,10 @@ impl<S: InputSynth + ?Sized> Executor<S> {
     }
 
     /// Queue a single step; surface send error.
-    pub fn try_enqueue(&self, step: InputStep) -> Result<(), crossbeam_channel::SendError<InputStep>> {
+    pub fn try_enqueue(
+        &self,
+        step: InputStep,
+    ) -> Result<(), crossbeam_channel::SendError<InputStep>> {
         self.tx.send(step)
     }
 

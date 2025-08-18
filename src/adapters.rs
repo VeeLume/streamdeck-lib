@@ -1,7 +1,7 @@
-use std::{ sync::{ Arc }, thread::JoinHandle };
 use crossbeam_channel::Receiver;
+use std::{sync::Arc, thread::JoinHandle};
 
-use crate::{ bus::Bus, context::Context, events::ErasedTopic };
+use crate::{bus::Bus, context::Context, events::ErasedTopic};
 
 /// How and when an adapter should be started/stopped.
 #[non_exhaustive]
@@ -24,7 +24,10 @@ pub struct AdapterHandle {
 
 impl AdapterHandle {
     pub fn new(join: Option<JoinHandle<()>>, shutdown: impl FnOnce() + Send + 'static) -> Self {
-        Self { join, shutdown: Box::new(shutdown) }
+        Self {
+            join,
+            shutdown: Box::new(shutdown),
+        }
     }
 
     /// Run shutdown then join (best effort).
@@ -52,7 +55,10 @@ impl AdapterHandle {
         Self::new(None, shutdown)
     }
 
-    pub fn from_crossbeam(join: JoinHandle<()>, shutdown_tx: crossbeam_channel::Sender<()>) -> Self {
+    pub fn from_crossbeam(
+        join: JoinHandle<()>,
+        shutdown_tx: crossbeam_channel::Sender<()>,
+    ) -> Self {
         Self::new(Some(join), move || {
             let _ = shutdown_tx.send(());
         })
@@ -86,6 +92,6 @@ pub trait Adapter: Send + Sync + 'static {
         &self,
         cx: &Context,
         bus: Arc<dyn Bus>,
-        rx: Receiver<Arc<ErasedTopic>>
+        rx: Receiver<Arc<ErasedTopic>>,
     ) -> AdapterResult;
 }

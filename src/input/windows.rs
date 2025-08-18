@@ -9,7 +9,9 @@ use super::types::{InputStep, MouseButton, Scan};
 pub struct WinSynth;
 
 impl WinSynth {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     /// Fast path: send many steps with as few `SendInput` calls as possible.
     /// `Sleep` acts as a flush boundary.
@@ -147,5 +149,9 @@ fn build_mouse(flags: MOUSE_EVENT_FLAGS, data: u32) -> INPUT {
 #[inline]
 fn send_one(input: INPUT) -> Result<(), String> {
     let n = unsafe { SendInput(&[input], size_of::<INPUT>() as i32) };
-    if n == 0 { Err("SendInput failed".into()) } else { Ok(()) }
+    if n == 0 {
+        Err("SendInput failed".into())
+    } else {
+        Ok(())
+    }
 }

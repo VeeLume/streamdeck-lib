@@ -1,9 +1,9 @@
 // sd_protocol.rs
-use std::{ convert::TryFrom, sync::Arc };
-use serde::{ Deserialize, Serialize };
-use serde_json::{ Map, Value };
-use serde_repr::{ Deserialize_repr, Serialize_repr };
-use num_enum::{ IntoPrimitive, TryFromPrimitive };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::{convert::TryFrom, sync::Arc};
 
 // =========================
 // Incoming: shared structs
@@ -19,7 +19,7 @@ use num_enum::{ IntoPrimitive, TryFromPrimitive };
     IntoPrimitive,
     TryFromPrimitive,
     Serialize_repr,
-    Deserialize_repr
+    Deserialize_repr,
 )]
 pub enum SdState {
     Primary = 0,
@@ -238,8 +238,8 @@ pub enum StreamDeckEvent {
 }
 
 pub mod views {
-    use serde_json::{ Map, Value };
-    use super::{ Coordinates, SdState, TitleParameters };
+    use super::{Coordinates, SdState, TitleParameters};
+    use serde_json::{Map, Value};
 
     pub struct WillAppear<'a> {
         pub action: &'a str,
@@ -374,40 +374,68 @@ impl std::fmt::Display for StreamDeckEvent {
             DeviceDidChange { .. } => write!(f, "DeviceDidChange"),
             DeviceDidConnect { .. } => write!(f, "DeviceDidConnect"),
             DeviceDidDisconnect { .. } => write!(f, "DeviceDidDisconnect"),
-            DialDown { action, context, .. } =>
-                write!(f, "DialDown(action={}, context={})", action, context),
-            DialRotate { action, context, .. } =>
-                write!(f, "DialRotate(action={}, context={})", action, context),
-            DialUp { action, context, .. } =>
-                write!(f, "DialUp(action={}, context={})", action, context),
+            DialDown {
+                action, context, ..
+            } => write!(f, "DialDown(action={}, context={})", action, context),
+            DialRotate {
+                action, context, ..
+            } => write!(f, "DialRotate(action={}, context={})", action, context),
+            DialUp {
+                action, context, ..
+            } => write!(f, "DialUp(action={}, context={})", action, context),
             DidReceiveDeepLink { .. } => write!(f, "DidReceiveDeepLink"),
             DidReceiveGlobalSettings { .. } => write!(f, "DidReceiveGlobalSettings"),
-            DidReceivePropertyInspectorMessage { action, context, .. } =>
-                write!(
-                    f,
-                    "DidReceivePropertyInspectorMessage(action={}, context={})",
-                    action,
-                    context
-                ),
-            DidReceiveSettings { action, context, .. } =>
-                write!(f, "DidReceiveSettings(action={}, context={})", action, context),
-            KeyDown { action, context, .. } =>
-                write!(f, "KeyDown(action={}, context={})", action, context),
-            KeyUp { action, context, .. } =>
-                write!(f, "KeyUp(action={}, context={})", action, context),
-            PropertyInspectorDidAppear { action, context, .. } =>
-                write!(f, "PropertyInspectorDidAppear(action={}, context={})", action, context),
-            PropertyInspectorDidDisappear { action, context, .. } =>
-                write!(f, "PropertyInspectorDidDisappear(action={}, context={})", action, context),
+            DidReceivePropertyInspectorMessage {
+                action, context, ..
+            } => write!(
+                f,
+                "DidReceivePropertyInspectorMessage(action={}, context={})",
+                action, context
+            ),
+            DidReceiveSettings {
+                action, context, ..
+            } => write!(
+                f,
+                "DidReceiveSettings(action={}, context={})",
+                action, context
+            ),
+            KeyDown {
+                action, context, ..
+            } => write!(f, "KeyDown(action={}, context={})", action, context),
+            KeyUp {
+                action, context, ..
+            } => write!(f, "KeyUp(action={}, context={})", action, context),
+            PropertyInspectorDidAppear {
+                action, context, ..
+            } => write!(
+                f,
+                "PropertyInspectorDidAppear(action={}, context={})",
+                action, context
+            ),
+            PropertyInspectorDidDisappear {
+                action, context, ..
+            } => write!(
+                f,
+                "PropertyInspectorDidDisappear(action={}, context={})",
+                action, context
+            ),
             SystemDidWakeUp => write!(f, "SystemDidWakeUp"),
-            TitleParametersDidChange { action, context, .. } =>
-                write!(f, "TitleParametersDidChange(action={}, context={})", action, context),
-            TouchTap { action, context, .. } =>
-                write!(f, "TouchTap(action={}, context={})", action, context),
-            WillAppear { action, context, .. } =>
-                write!(f, "WillAppear(action={}, context={})", action, context),
-            WillDisappear { action, context, .. } =>
-                write!(f, "WillDisappear(action={}, context={})", action, context),
+            TitleParametersDidChange {
+                action, context, ..
+            } => write!(
+                f,
+                "TitleParametersDidChange(action={}, context={})",
+                action, context
+            ),
+            TouchTap {
+                action, context, ..
+            } => write!(f, "TouchTap(action={}, context={})", action, context),
+            WillAppear {
+                action, context, ..
+            } => write!(f, "WillAppear(action={}, context={})", action, context),
+            WillDisappear {
+                action, context, ..
+            } => write!(f, "WillDisappear(action={}, context={})", action, context),
         }
     }
 }
@@ -423,14 +451,16 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
     // Small helper to get &str (still cheap clones for the strings themselves).
     #[inline]
     fn must_str<'a>(m: &'a Map<String, Value>, key: &str) -> Result<&'a str, String> {
-        m.get(key).and_then(Value::as_str).ok_or_else(|| format!("missing {key}"))
+        m.get(key)
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("missing {key}"))
     }
 
     // Pull top-level fields (strings are cheap to clone).
     let event = must_str(&m, "event")?.to_string();
-    let action  = m.get("action").and_then(Value::as_str).map(str::to_string);
+    let action = m.get("action").and_then(Value::as_str).map(str::to_string);
     let context = m.get("context").and_then(Value::as_str).map(str::to_string);
-    let device  = m.get("device").and_then(Value::as_str).map(str::to_string);
+    let device = m.get("device").and_then(Value::as_str).map(str::to_string);
 
     // Mutable access to payload so we can move things out without cloning.
     let mut payload = m.remove("payload"); // Option<Value>
@@ -459,7 +489,7 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             let o = v.as_object()?;
             Some(crate::sd_protocol::Coordinates {
                 column: o.get("column")?.as_i64()?,
-                row:    o.get("row")?.as_i64()?,
+                row: o.get("row")?.as_i64()?,
             })
         });
 
@@ -493,9 +523,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
 
     match event.as_str() {
         "willAppear" => Ok(WillAppear {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             is_in_multi_action,
@@ -503,9 +533,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             coordinates,
         }),
         "didReceiveSettings" => Ok(DidReceiveSettings {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             is_in_multi_action,
@@ -513,9 +543,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             coordinates,
         }),
         "keyDown" => Ok(KeyDown {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.unwrap_or_else(|| "Keypad".to_string()),
             is_in_multi_action,
@@ -523,9 +553,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             coordinates,
         }),
         "keyUp" => Ok(KeyUp {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.unwrap_or_else(|| "Keypad".to_string()),
             is_in_multi_action,
@@ -533,9 +563,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             coordinates,
         }),
         "willDisappear" => Ok(WillDisappear {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             is_in_multi_action,
@@ -543,19 +573,19 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             coordinates,
         }),
         "propertyInspectorDidAppear" => Ok(PropertyInspectorDidAppear {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
         }),
         "propertyInspectorDidDisappear" => Ok(PropertyInspectorDidDisappear {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
         }),
         "titleParametersDidChange" => Ok(TitleParametersDidChange {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             coordinates: coordinates.ok_or("missing payload.coordinates")?,
@@ -565,18 +595,29 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
         }),
         "touchTap" => {
             let (hold, x, y) = {
-                let p = payload.as_ref().and_then(Value::as_object).ok_or("missing payload")?;
-                let hold = p.get("hold").and_then(Value::as_bool).ok_or("missing payload.hold")?;
-                let tap  = p.get("tapPos").and_then(Value::as_array).ok_or("missing payload.tapPos")?;
-                if tap.len() != 2 { return Err("payload.tapPos must be [x,y]".to_string()); }
+                let p = payload
+                    .as_ref()
+                    .and_then(Value::as_object)
+                    .ok_or("missing payload")?;
+                let hold = p
+                    .get("hold")
+                    .and_then(Value::as_bool)
+                    .ok_or("missing payload.hold")?;
+                let tap = p
+                    .get("tapPos")
+                    .and_then(Value::as_array)
+                    .ok_or("missing payload.tapPos")?;
+                if tap.len() != 2 {
+                    return Err("payload.tapPos must be [x,y]".to_string());
+                }
                 let x = tap[0].as_i64().ok_or("payload.tapPos[0] not i64")?;
                 let y = tap[1].as_i64().ok_or("payload.tapPos[1] not i64")?;
                 (hold, x, y)
             };
             Ok(TouchTap {
-                action:  action.ok_or("missing action")?,
+                action: action.ok_or("missing action")?,
                 context: context.ok_or("missing context")?,
-                device:  device.ok_or("missing device")?,
+                device: device.ok_or("missing device")?,
                 settings,
                 controller: controller_opt.ok_or("missing payload.controller")?,
                 coordinates: coordinates.ok_or("missing payload.coordinates")?,
@@ -585,24 +626,33 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             })
         }
         "dialDown" => Ok(DialDown {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             coordinates: coordinates.ok_or("missing payload.coordinates")?,
         }),
         "dialRotate" => {
             let (pressed, ticks) = {
-                let p = payload.as_ref().and_then(Value::as_object).ok_or("missing payload")?;
-                let pressed = p.get("pressed").and_then(Value::as_bool).ok_or("missing payload.pressed")?;
-                let ticks   = p.get("ticks").and_then(Value::as_i64 ).ok_or("missing payload.ticks")?;
+                let p = payload
+                    .as_ref()
+                    .and_then(Value::as_object)
+                    .ok_or("missing payload")?;
+                let pressed = p
+                    .get("pressed")
+                    .and_then(Value::as_bool)
+                    .ok_or("missing payload.pressed")?;
+                let ticks = p
+                    .get("ticks")
+                    .and_then(Value::as_i64)
+                    .ok_or("missing payload.ticks")?;
                 (pressed, ticks)
             };
             Ok(DialRotate {
-                action:  action.ok_or("missing action")?,
+                action: action.ok_or("missing action")?,
                 context: context.ok_or("missing context")?,
-                device:  device.ok_or("missing device")?,
+                device: device.ok_or("missing device")?,
                 settings,
                 controller: controller_opt.ok_or("missing payload.controller")?,
                 coordinates: coordinates.ok_or("missing payload.coordinates")?,
@@ -611,9 +661,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
             })
         }
         "dialUp" => Ok(DialUp {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
-            device:  device.ok_or("missing device")?,
+            device: device.ok_or("missing device")?,
             settings,
             controller: controller_opt.ok_or("missing payload.controller")?,
             coordinates: coordinates.ok_or("missing payload.coordinates")?,
@@ -637,14 +687,16 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
         "deviceDidChange" => Ok(DeviceDidChange {
             device: device.ok_or("missing device")?,
             device_info: serde_json::from_value(
-                m.remove("deviceInfo").ok_or("missing deviceInfo")?
-            ).map_err(|e| format!("bad deviceInfo: {e}"))?,
+                m.remove("deviceInfo").ok_or("missing deviceInfo")?,
+            )
+            .map_err(|e| format!("bad deviceInfo: {e}"))?,
         }),
         "deviceDidConnect" => Ok(DeviceDidConnect {
             device: device.ok_or("missing device")?,
             device_info: serde_json::from_value(
-                m.remove("deviceInfo").ok_or("missing deviceInfo")?
-            ).map_err(|e| format!("bad deviceInfo: {e}"))?,
+                m.remove("deviceInfo").ok_or("missing deviceInfo")?,
+            )
+            .map_err(|e| format!("bad deviceInfo: {e}"))?,
         }),
         "deviceDidDisconnect" => Ok(DeviceDidDisconnect {
             device: device.ok_or("missing device")?,
@@ -657,11 +709,9 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
                 .ok_or("missing payload.url")?
                 .to_string(),
         }),
-        "didReceiveGlobalSettings" => Ok(DidReceiveGlobalSettings {
-            settings
-        }),
+        "didReceiveGlobalSettings" => Ok(DidReceiveGlobalSettings { settings }),
         "sendToPlugin" => Ok(DidReceivePropertyInspectorMessage {
-            action:  action.ok_or("missing action")?,
+            action: action.ok_or("missing action")?,
             context: context.ok_or("missing context")?,
             payload: match payload {
                 Some(Value::Object(obj)) => obj,
@@ -672,7 +722,6 @@ pub fn parse_incoming_owned(mut m: Map<String, Value>) -> Result<StreamDeckEvent
         other => Err(format!("unknown StreamDeck event: {other}")),
     }
 }
-
 
 // =========================
 // Outgoing: typed payloads
@@ -781,74 +830,77 @@ pub enum Outgoing {
 #[derive(Serialize)]
 #[serde(tag = "event")]
 enum WireOutgoing<'a> {
-    #[serde(rename = "getGlobalSettings")] GetGlobalSettings {
-        context: &'a str,
-    },
+    #[serde(rename = "getGlobalSettings")]
+    GetGlobalSettings { context: &'a str },
 
-    #[serde(rename = "getSettings")] GetSettings {
-        context: &'a str,
-    },
+    #[serde(rename = "getSettings")]
+    GetSettings { context: &'a str },
 
-    #[serde(rename = "logMessage")] LogMessage {
-        payload: WireLogMessage<'a>,
-    },
+    #[serde(rename = "logMessage")]
+    LogMessage { payload: WireLogMessage<'a> },
 
-    #[serde(rename = "openUrl")] OpenUrl {
-        payload: WireOpenUrl<'a>,
-    },
+    #[serde(rename = "openUrl")]
+    OpenUrl { payload: WireOpenUrl<'a> },
 
-    #[serde(rename = "sendToPropertyInspector")] SendToPropertyInspector {
+    #[serde(rename = "sendToPropertyInspector")]
+    SendToPropertyInspector {
         context: &'a str,
         payload: &'a Value,
     },
 
-    #[serde(rename = "setFeedback")] SetFeedback {
+    #[serde(rename = "setFeedback")]
+    SetFeedback {
         context: &'a str,
         payload: &'a Value,
     },
 
-    #[serde(rename = "setFeedbackLayout")] SetFeedbackLayout {
+    #[serde(rename = "setFeedbackLayout")]
+    SetFeedbackLayout {
         context: &'a str,
         payload: WireLayout<'a>,
     },
 
-    #[serde(rename = "setGlobalSettings")] SetGlobalSettings {
+    #[serde(rename = "setGlobalSettings")]
+    SetGlobalSettings {
         context: &'a str,
         payload: &'a Map<String, Value>,
     },
 
-    #[serde(rename = "setImage")] SetImage {
+    #[serde(rename = "setImage")]
+    SetImage {
         context: &'a str,
         payload: &'a SetImagePayload,
     },
 
-    #[serde(rename = "setSettings")] SetSettings {
+    #[serde(rename = "setSettings")]
+    SetSettings {
         context: &'a str,
         payload: &'a Map<String, Value>,
     },
 
-    #[serde(rename = "setState")] SetState {
+    #[serde(rename = "setState")]
+    SetState {
         context: &'a str,
         payload: WireState,
     },
 
-    #[serde(rename = "setTitle")] SetTitle {
+    #[serde(rename = "setTitle")]
+    SetTitle {
         context: &'a str,
         payload: &'a SetTitlePayload,
     },
 
-    #[serde(rename = "setTriggerDescription")] SetTriggerDescription {
+    #[serde(rename = "setTriggerDescription")]
+    SetTriggerDescription {
         context: &'a str,
         payload: &'a TriggerPayload,
     },
 
-    #[serde(rename = "showAlert")] ShowAlert {
-        context: &'a str,
-    },
+    #[serde(rename = "showAlert")]
+    ShowAlert { context: &'a str },
 
-    #[serde(rename = "showOk")] ShowOk {
-        context: &'a str,
-    },
+    #[serde(rename = "showOk")]
+    ShowOk { context: &'a str },
 }
 
 #[derive(Serialize)]
@@ -874,23 +926,33 @@ impl<'a> From<&'a Outgoing> for WireOutgoing<'a> {
         match o {
             GetGlobalSettings { context } => WireOutgoing::GetGlobalSettings { context },
             GetSettings { context } => WireOutgoing::GetSettings { context },
-            LogMessage { message } =>
-                WireOutgoing::LogMessage { payload: WireLogMessage { message } },
-            OpenUrl { url } => WireOutgoing::OpenUrl { payload: WireOpenUrl { url } },
-            SendToPropertyInspector { context, payload } =>
-                WireOutgoing::SendToPropertyInspector { context, payload },
+            LogMessage { message } => WireOutgoing::LogMessage {
+                payload: WireLogMessage { message },
+            },
+            OpenUrl { url } => WireOutgoing::OpenUrl {
+                payload: WireOpenUrl { url },
+            },
+            SendToPropertyInspector { context, payload } => {
+                WireOutgoing::SendToPropertyInspector { context, payload }
+            }
             SetFeedback { context, payload } => WireOutgoing::SetFeedback { context, payload },
-            SetFeedbackLayout { context, layout } =>
-                WireOutgoing::SetFeedbackLayout { context, payload: WireLayout { layout } },
-            SetGlobalSettings { context, payload } =>
-                WireOutgoing::SetGlobalSettings { context, payload },
+            SetFeedbackLayout { context, layout } => WireOutgoing::SetFeedbackLayout {
+                context,
+                payload: WireLayout { layout },
+            },
+            SetGlobalSettings { context, payload } => {
+                WireOutgoing::SetGlobalSettings { context, payload }
+            }
             SetImage { context, payload } => WireOutgoing::SetImage { context, payload },
             SetSettings { context, payload } => WireOutgoing::SetSettings { context, payload },
-            SetState { context, state } =>
-                WireOutgoing::SetState { context, payload: WireState { state: *state } },
+            SetState { context, state } => WireOutgoing::SetState {
+                context,
+                payload: WireState { state: *state },
+            },
             SetTitle { context, payload } => WireOutgoing::SetTitle { context, payload },
-            SetTriggerDescription { context, payload } =>
-                WireOutgoing::SetTriggerDescription { context, payload },
+            SetTriggerDescription { context, payload } => {
+                WireOutgoing::SetTriggerDescription { context, payload }
+            }
             ShowAlert { context } => WireOutgoing::ShowAlert { context },
             ShowOk { context } => WireOutgoing::ShowOk { context },
         }
@@ -908,7 +970,7 @@ pub fn serialize_outgoing(msg: &Outgoing) -> serde_json::Result<String> {
 
 use crossbeam_channel::Sender;
 
-use crate::{ debug, events::RuntimeMsg, logger::ActionLog };
+use crate::{debug, events::RuntimeMsg, logger::ActionLog};
 
 #[derive(Clone)]
 pub struct SdClient {
@@ -923,9 +985,14 @@ impl SdClient {
         tx: Sender<RuntimeMsg>,
         plugin_uuid: impl Into<String>,
         logger: Arc<dyn ActionLog>,
-        log_websocket: bool
+        log_websocket: bool,
     ) -> Self {
-        Self { tx, plugin_uuid: plugin_uuid.into(), logger, log_websocket }
+        Self {
+            tx,
+            plugin_uuid: plugin_uuid.into(),
+            logger,
+            log_websocket,
+        }
     }
 
     #[inline]
@@ -937,25 +1004,40 @@ impl SdClient {
     }
 
     pub fn get_global_settings(&self) {
-        self.send(Outgoing::GetGlobalSettings { context: self.plugin_uuid.clone() });
+        self.send(Outgoing::GetGlobalSettings {
+            context: self.plugin_uuid.clone(),
+        });
     }
     pub fn get_settings(&self, context: impl Into<String>) {
-        self.send(Outgoing::GetSettings { context: context.into() });
+        self.send(Outgoing::GetSettings {
+            context: context.into(),
+        });
     }
     pub fn log_message(&self, message: impl Into<String>) {
-        self.send(Outgoing::LogMessage { message: message.into() });
+        self.send(Outgoing::LogMessage {
+            message: message.into(),
+        });
     }
     pub fn open_url(&self, url: impl Into<String>) {
         self.send(Outgoing::OpenUrl { url: url.into() });
     }
     pub fn send_to_property_inspector(&self, context: impl Into<String>, payload: Value) {
-        self.send(Outgoing::SendToPropertyInspector { context: context.into(), payload });
+        self.send(Outgoing::SendToPropertyInspector {
+            context: context.into(),
+            payload,
+        });
     }
     pub fn set_feedback(&self, context: impl Into<String>, payload: Value) {
-        self.send(Outgoing::SetFeedback { context: context.into(), payload });
+        self.send(Outgoing::SetFeedback {
+            context: context.into(),
+            payload,
+        });
     }
     pub fn set_feedback_layout(&self, context: impl Into<String>, layout: impl Into<String>) {
-        self.send(Outgoing::SetFeedbackLayout { context: context.into(), layout: layout.into() });
+        self.send(Outgoing::SetFeedbackLayout {
+            context: context.into(),
+            layout: layout.into(),
+        });
     }
     pub fn set_global_settings(&self, settings: Map<String, Value>) {
         self.send(Outgoing::SetGlobalSettings {
@@ -968,29 +1050,43 @@ impl SdClient {
         context: impl Into<String>,
         image_base64: Option<String>,
         state: Option<SdState>,
-        target: Option<Target>
+        target: Option<Target>,
     ) {
         self.send(Outgoing::SetImage {
             context: context.into(),
-            payload: SetImagePayload { image: image_base64, state, target },
+            payload: SetImagePayload {
+                image: image_base64,
+                state,
+                target,
+            },
         });
     }
     pub fn set_settings(&self, context: impl Into<String>, settings: Map<String, Value>) {
-        self.send(Outgoing::SetSettings { context: context.into(), payload: settings });
+        self.send(Outgoing::SetSettings {
+            context: context.into(),
+            payload: settings,
+        });
     }
     pub fn set_state(&self, context: impl Into<String>, state: SdState) {
-        self.send(Outgoing::SetState { context: context.into(), state });
+        self.send(Outgoing::SetState {
+            context: context.into(),
+            state,
+        });
     }
     pub fn set_title(
         &self,
         context: impl Into<String>,
         title: Option<String>,
         state: Option<SdState>,
-        target: Option<Target>
+        target: Option<Target>,
     ) {
         self.send(Outgoing::SetTitle {
             context: context.into(),
-            payload: SetTitlePayload { title, state, target },
+            payload: SetTitlePayload {
+                title,
+                state,
+                target,
+            },
         });
     }
 
@@ -1011,17 +1107,26 @@ impl SdClient {
         long_touch: Option<String>,
         push: Option<String>,
         rotate: Option<String>,
-        touch: Option<String>
+        touch: Option<String>,
     ) {
         self.send(Outgoing::SetTriggerDescription {
             context: context.into(),
-            payload: TriggerPayload { long_touch, push, rotate, touch },
+            payload: TriggerPayload {
+                long_touch,
+                push,
+                rotate,
+                touch,
+            },
         });
     }
     pub fn show_alert(&self, context: impl Into<String>) {
-        self.send(Outgoing::ShowAlert { context: context.into() });
+        self.send(Outgoing::ShowAlert {
+            context: context.into(),
+        });
     }
     pub fn show_ok(&self, context: impl Into<String>) {
-        self.send(Outgoing::ShowOk { context: context.into() });
+        self.send(Outgoing::ShowOk {
+            context: context.into(),
+        });
     }
 }

@@ -1,9 +1,9 @@
 // src/logger.rs
 use std::{
-    fs::{ self, OpenOptions },
-    io::{ self, Write },
-    path::{ Path },
-    sync::{ mpsc },
+    fs::{self, OpenOptions},
+    io::{self, Write},
+    path::Path,
+    sync::mpsc,
     thread,
     time::Duration,
 };
@@ -162,11 +162,7 @@ impl FileLogger {
         // Writer state kept inside worker thread
         let worker = thread::spawn(move || {
             let mut file = file;
-            let mut bytes_written: u64 = file
-                .metadata()
-                .ok()
-                .map(|m| m.len())
-                .unwrap_or(0);
+            let mut bytes_written: u64 = file.metadata().ok().map(|m| m.len()).unwrap_or(0);
             let mut last_flush = std::time::Instant::now();
 
             loop {
@@ -178,29 +174,23 @@ impl FileLogger {
                         }
                         // Format line with timestamp + level once here.
                         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-                        let formatted = format!(
-                            "[{}] {:<5} {}\n",
-                            timestamp,
-                            msg.level.as_str(),
-                            msg.line
-                        );
+                        let formatted =
+                            format!("[{}] {:<5} {}\n", timestamp, msg.level.as_str(), msg.line);
 
                         // Rotate by size if configured
                         if let Some(max) = cfg.max_bytes {
                             if bytes_written + (formatted.len() as u64) > max {
                                 // Close current file by dropping it, rotate files,
                                 // and reopen a fresh one at the same path.
-                                if
-                                    let Err(e) = rotate_logs_startup(
-                                        &worker_path,
-                                        cfg.max_rotations
-                                    )
+                                if let Err(e) = rotate_logs_startup(&worker_path, cfg.max_rotations)
                                 {
                                     // We can't log about logging, but try stderr.
                                     let _ = writeln!(io::stderr(), "log rotation error: {}", e);
                                 }
-                                match
-                                    OpenOptions::new().create(true).append(true).open(&worker_path)
+                                match OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open(&worker_path)
                                 {
                                     Ok(f) => {
                                         file = f;
@@ -239,7 +229,10 @@ impl FileLogger {
             let _ = file.flush();
         });
 
-        Ok(Self { tx, _worker: worker })
+        Ok(Self {
+            tx,
+            _worker: worker,
+        })
     }
 
     /// Initialize like before, with default config.
@@ -263,14 +256,9 @@ impl Drop for FileLogger {
         // (tx is dropped automatically; being explicit is clear)
         // Then join the worker so we know the final flush happened.
         // If the worker is blocked, the recv_timeout upper-bounds the wait.
-        if
-            let Some(worker) = std::mem
-                ::replace(
-                    &mut self._worker,
-                    thread::spawn(|| {})
-                )
-                .join()
-                .err()
+        if let Some(worker) = std::mem::replace(&mut self._worker, thread::spawn(|| {}))
+            .join()
+            .err()
         {
             // Best-effort: you could write to stderr here if you want.
             let _ = writeln!(io::stderr(), "logger worker join failed: {:?}", worker);
@@ -280,10 +268,16 @@ impl Drop for FileLogger {
 
 impl ActionLog for FileLogger {
     fn log(&self, message: &str) {
-        let _ = self.tx.send(LogMsg { level: Level::Info, line: message.to_string() });
+        let _ = self.tx.send(LogMsg {
+            level: Level::Info,
+            line: message.to_string(),
+        });
     }
     fn log_level(&self, level: Level, message: &str) {
-        let _ = self.tx.send(LogMsg { level, line: message.to_string() });
+        let _ = self.tx.send(LogMsg {
+            level,
+            line: message.to_string(),
+        });
     }
 }
 

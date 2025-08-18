@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
 /// Windows-style scancode and E0/E1 "extended" flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,7 +13,9 @@ impl Scan {
         Self { code, extended }
     }
     #[inline]
-    pub const fn as_tuple(self) -> (u16, bool) { (self.code, self.extended) }
+    pub const fn as_tuple(self) -> (u16, bool) {
+        (self.code, self.extended)
+    }
 }
 impl core::fmt::Display for Scan {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

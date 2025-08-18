@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     context::Context,
     events::ErasedTopic,
-    sd_protocol::{views::*, StreamDeckEvent},
+    sd_protocol::{StreamDeckEvent, views::*},
 };
 
 pub type ActionId = String;
@@ -15,7 +15,9 @@ pub trait Action: Send + 'static {
     fn id(&self) -> &str;
 
     /// Static subscriptions for ActionTarget::Topic fan-out (optional).
-    fn topics(&self) -> &'static [&'static str] { &[] }
+    fn topics(&self) -> &'static [&'static str] {
+        &[]
+    }
 
     fn init(&mut self, _cx: &Context, _ctx_id: &str) {}
     fn teardown(&mut self, _cx: &Context, _ctx_id: &str) {}
@@ -35,9 +37,19 @@ pub trait Action: Send + 'static {
     // Title/PI/settings
     fn title_parameters_did_change(&mut self, _cx: &Context, _ev: &TitleParametersDidChange) {}
     fn property_inspector_did_appear(&mut self, _cx: &Context, _ev: &PropertyInspectorDidAppear) {}
-    fn property_inspector_did_disappear(&mut self, _cx: &Context, _ev: &PropertyInspectorDidDisappear) {}
+    fn property_inspector_did_disappear(
+        &mut self,
+        _cx: &Context,
+        _ev: &PropertyInspectorDidDisappear,
+    ) {
+    }
     fn did_receive_settings(&mut self, _cx: &Context, _ev: &DidReceiveSettings) {}
-    fn did_receive_property_inspector_message(&mut self, _cx: &Context, _ev: &DidReceivePropertyInspectorMessage) {}
+    fn did_receive_property_inspector_message(
+        &mut self,
+        _cx: &Context,
+        _ev: &DidReceivePropertyInspectorMessage,
+    ) {
+    }
 
     fn on_global_event(&mut self, _cx: &Context, _ev: &StreamDeckEvent) {}
 
@@ -65,7 +77,6 @@ impl std::fmt::Debug for ActionFactory {
     }
 }
 
-
 impl ActionFactory {
     /// Explicit id.
     pub fn new<F, A>(id: impl Into<String>, factory: F) -> Self
@@ -73,7 +84,10 @@ impl ActionFactory {
         F: Fn() -> A + Send + Sync + 'static,
         A: Action + 'static,
     {
-        Self { id: id.into(), build: Arc::new(move || Box::new(factory())) }
+        Self {
+            id: id.into(),
+            build: Arc::new(move || Box::new(factory())),
+        }
     }
 
     /// Use the action type's compile-time id.
@@ -97,10 +111,6 @@ impl ActionFactory {
 /// Tiny helper so you can register with less ceremony.
 #[macro_export]
 macro_rules! simple_action_factory {
-    ($ty:ty) => {{
-        $crate::ActionFactory::default_of::<$ty>()
-    }};
-    ($id:expr, $ty:ty) => {{
-        $crate::ActionFactory::new($id, || <$ty>::default())
-    }};
+    ($ty:ty) => {{ $crate::ActionFactory::default_of::<$ty>() }};
+    ($id:expr, $ty:ty) => {{ $crate::ActionFactory::new($id, || <$ty>::default()) }};
 }

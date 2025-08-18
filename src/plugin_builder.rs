@@ -3,16 +3,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::actions::{ ActionFactory, ActionId };
-use crate::context::{ Context, Extensions };
+use crate::actions::{ActionFactory, ActionId};
+use crate::adapters::Adapter;
+use crate::context::{Context, Extensions};
 use crate::hooks::AppHooks;
 use crate::logger::ActionLog;
 use crate::sd_protocol::SdClient;
-use crate::adapters::{ Adapter };
 
 #[derive(Debug, Error)]
 pub enum BuildError {
-    #[error("Missing required extension: {0}")] MissingExtension(&'static str),
+    #[error("Missing required extension: {0}")]
+    MissingExtension(&'static str),
 }
 
 #[derive(Default)]
@@ -34,7 +35,10 @@ impl PluginBuilder {
     }
 
     /// Register a typed extension (TemplateStore, ActiveChar, BindingsStore, …)
-    pub fn add_extension<T>(self, value: Arc<T>) -> Self where T: Send + Sync + 'static {
+    pub fn add_extension<T>(self, value: Arc<T>) -> Self
+    where
+        T: Send + Sync + 'static,
+    {
         self.exts.provide::<T>(value);
         self
     }
@@ -74,7 +78,7 @@ impl Plugin {
         log: Arc<dyn ActionLog>,
         plugin_uuid: String,
         exts: Extensions,
-        bus: Arc<dyn crate::bus::Bus>
+        bus: Arc<dyn crate::bus::Bus>,
     ) -> Context {
         Context::new(sd, log, plugin_uuid, exts, bus)
     }

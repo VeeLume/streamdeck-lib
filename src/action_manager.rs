@@ -1,12 +1,12 @@
 // action_manager.rs
-use std::{ collections::HashMap, sync::Arc };
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    actions::{ Action, ActionFactory, ActionId },
+    actions::{Action, ActionFactory, ActionId},
     context::Context,
-    events::{ ActionTarget, ErasedTopic },
+    events::{ActionTarget, ErasedTopic},
     plugin_builder::Plugin,
-    sd_protocol::{ StreamDeckEvent, views },
+    sd_protocol::{StreamDeckEvent, views},
 };
 
 pub(crate) struct ActionManager {
@@ -17,7 +17,11 @@ pub(crate) struct ActionManager {
 
 impl ActionManager {
     pub(crate) fn new(regs: HashMap<ActionId, ActionFactory>) -> Self {
-        Self { regs, instances: HashMap::new(), by_topic: HashMap::new() }
+        Self {
+            regs,
+            instances: HashMap::new(),
+            by_topic: HashMap::new(),
+        }
     }
 
     #[inline]
@@ -33,7 +37,7 @@ impl ActionManager {
         &mut self,
         cx: &Context,
         action_id: &str,
-        ctx_id: &str
+        ctx_id: &str,
     ) -> Option<&mut Box<dyn Action>> {
         let key = Self::key(action_id, ctx_id);
         if !self.instances.contains_key(&key) {
@@ -62,7 +66,7 @@ impl ActionManager {
     fn get_or_make_for_teardown(
         &mut self,
         action_id: &str,
-        ctx_id: &str
+        ctx_id: &str,
     ) -> Option<&mut Box<dyn Action>> {
         let key = Self::key(action_id, ctx_id);
         if !self.instances.contains_key(&key) {
@@ -130,7 +134,12 @@ impl ActionManager {
     }
 }
 
-pub(crate) fn dispatch(mgr: &mut ActionManager, cx: &Context, _plugin: &Plugin, ev: StreamDeckEvent) {
+pub(crate) fn dispatch(
+    mgr: &mut ActionManager,
+    cx: &Context,
+    _plugin: &Plugin,
+    ev: StreamDeckEvent,
+) {
     use StreamDeckEvent::*;
 
     match &ev {
@@ -235,15 +244,43 @@ pub(crate) fn dispatch(mgr: &mut ActionManager, cx: &Context, _plugin: &Plugin, 
             }
         }
 
-        DialDown { action, context, device, settings, controller, coordinates } => {
-            let v = views::DialDown { action, context, device, settings, controller, coordinates };
+        DialDown {
+            action,
+            context,
+            device,
+            settings,
+            controller,
+            coordinates,
+        } => {
+            let v = views::DialDown {
+                action,
+                context,
+                device,
+                settings,
+                controller,
+                coordinates,
+            };
             if let Some(a) = mgr.ensure_ready(cx, action, context) {
                 a.dial_down(cx, &v);
             }
         }
 
-        DialUp { action, context, device, settings, controller, coordinates } => {
-            let v = views::DialUp { action, context, device, settings, controller, coordinates };
+        DialUp {
+            action,
+            context,
+            device,
+            settings,
+            controller,
+            coordinates,
+        } => {
+            let v = views::DialUp {
+                action,
+                context,
+                device,
+                settings,
+                controller,
+                coordinates,
+            };
             if let Some(a) = mgr.ensure_ready(cx, action, context) {
                 a.dial_up(cx, &v);
             }
@@ -274,7 +311,16 @@ pub(crate) fn dispatch(mgr: &mut ActionManager, cx: &Context, _plugin: &Plugin, 
             }
         }
 
-        TouchTap { action, context, device, settings, controller, coordinates, hold, tap_pos } => {
+        TouchTap {
+            action,
+            context,
+            device,
+            settings,
+            controller,
+            coordinates,
+            hold,
+            tap_pos,
+        } => {
             let v = views::TouchTap {
                 action,
                 context,
@@ -317,15 +363,31 @@ pub(crate) fn dispatch(mgr: &mut ActionManager, cx: &Context, _plugin: &Plugin, 
             }
         }
 
-        PropertyInspectorDidAppear { action, context, device } => {
-            let v = views::PropertyInspectorDidAppear { action, context, device };
+        PropertyInspectorDidAppear {
+            action,
+            context,
+            device,
+        } => {
+            let v = views::PropertyInspectorDidAppear {
+                action,
+                context,
+                device,
+            };
             if let Some(a) = mgr.ensure_ready(cx, action, context) {
                 a.property_inspector_did_appear(cx, &v);
             }
         }
 
-        PropertyInspectorDidDisappear { action, context, device } => {
-            let v = views::PropertyInspectorDidDisappear { action, context, device };
+        PropertyInspectorDidDisappear {
+            action,
+            context,
+            device,
+        } => {
+            let v = views::PropertyInspectorDidDisappear {
+                action,
+                context,
+                device,
+            };
             if let Some(a) = mgr.ensure_ready(cx, action, context) {
                 a.property_inspector_did_disappear(cx, &v);
             }
@@ -356,8 +418,16 @@ pub(crate) fn dispatch(mgr: &mut ActionManager, cx: &Context, _plugin: &Plugin, 
             }
         }
 
-        DidReceivePropertyInspectorMessage { action, context, payload } => {
-            let v = views::DidReceivePropertyInspectorMessage { action, context, payload };
+        DidReceivePropertyInspectorMessage {
+            action,
+            context,
+            payload,
+        } => {
+            let v = views::DidReceivePropertyInspectorMessage {
+                action,
+                context,
+                payload,
+            };
             if let Some(a) = mgr.ensure_ready(cx, action, context) {
                 a.did_receive_property_inspector_message(cx, &v);
             }

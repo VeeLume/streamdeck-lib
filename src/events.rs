@@ -1,5 +1,9 @@
-use std::{ any::Any, marker::PhantomData, sync::Arc };
-use crate::{ adapters::StartPolicy, logger::Level, sd_protocol::{ Outgoing, StreamDeckEvent } };
+use crate::{
+    adapters::StartPolicy,
+    logger::Level,
+    sd_protocol::{Outgoing, StreamDeckEvent},
+};
+use std::{any::Any, marker::PhantomData, sync::Arc};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +68,10 @@ pub struct TopicId<T: 'static> {
 }
 impl<T: 'static> TopicId<T> {
     pub const fn new(name: &'static str) -> Self {
-        Self { name, _pd: PhantomData }
+        Self {
+            name,
+            _pd: PhantomData,
+        }
     }
 }
 
@@ -87,13 +94,23 @@ impl ErasedTopic {
     pub fn new<T: 'static + Send + Sync>(
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) -> Self {
-        Self { name: id.name, context, payload: Box::new(value) }
+        Self {
+            name: id.name,
+            context,
+            payload: Box::new(value),
+        }
     }
 
-    #[inline] pub fn name(&self) -> &'static str { self.name }
-    #[inline] pub fn context(&self) -> Option<&str> { self.context.as_deref() }
+    #[inline]
+    pub fn name(&self) -> &'static str {
+        self.name
+    }
+    #[inline]
+    pub fn context(&self) -> Option<&str> {
+        self.context.as_deref()
+    }
 
     #[inline]
     pub fn is<T: 'static>(&self, id: TopicId<T>) -> bool {
@@ -116,10 +133,7 @@ impl ErasedTopic {
         if self.name != id.name {
             return None;
         }
-        self.payload
-            .downcast::<T>()
-            .ok()
-            .map(|b| *b)
+        self.payload.downcast::<T>().ok().map(|b| *b)
     }
 }
 

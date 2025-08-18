@@ -1,9 +1,9 @@
 use crossbeam_channel::Sender;
-use std::{ sync::Arc };
+use std::sync::Arc;
 
 use crate::{
-    adapters::{ AdapterStatic, StartPolicy },
-    events::{ ActionTarget, AdapterControl, AdapterTarget, ErasedTopic, RuntimeMsg, TopicId },
+    adapters::{AdapterStatic, StartPolicy},
+    events::{ActionTarget, AdapterControl, AdapterTarget, ErasedTopic, RuntimeMsg, TopicId},
     logger::Level,
     sd_protocol::Outgoing,
 };
@@ -42,7 +42,10 @@ impl Bus for Emitter {
     }
 
     fn log(&self, msg: &str, level: Level) {
-        let _ = self.tx.send(RuntimeMsg::Log { msg: msg.to_string(), level });
+        let _ = self.tx.send(RuntimeMsg::Log {
+            msg: msg.to_string(),
+            level,
+        });
     }
 
     fn action_notify(&self, target: ActionTarget, event: Arc<ErasedTopic>) {
@@ -67,14 +70,14 @@ pub trait BusTyped {
         target: ActionTarget,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     );
 
     fn action_notify_all_t<T: 'static + Send + Sync>(
         &self,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.action_notify_t(ActionTarget::All, id, context, value);
     }
@@ -84,7 +87,7 @@ pub trait BusTyped {
         ctx: impl Into<String>,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.action_notify_t(ActionTarget::Context(ctx.into()), id, context, value);
     }
@@ -94,7 +97,7 @@ pub trait BusTyped {
         action_id: &'static str,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.action_notify_t(ActionTarget::Id(action_id), id, context, value);
     }
@@ -103,7 +106,7 @@ pub trait BusTyped {
         &self,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.action_notify_t(ActionTarget::Id(A::ID), id, context, value);
     }
@@ -112,7 +115,7 @@ pub trait BusTyped {
         &self,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.action_notify_t(ActionTarget::Topic(id.name), id, context, value);
     }
@@ -123,14 +126,14 @@ pub trait BusTyped {
         target: AdapterTarget,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     );
 
     fn adapters_notify_all_t<T: 'static + Send + Sync>(
         &self,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.adapters_notify_t(AdapterTarget::All, id, context, value);
     }
@@ -140,7 +143,7 @@ pub trait BusTyped {
         policy: StartPolicy,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.adapters_notify_t(AdapterTarget::Policy(policy), id, context, value);
     }
@@ -150,7 +153,7 @@ pub trait BusTyped {
         name: &'static str,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.adapters_notify_t(AdapterTarget::Name(name), id, context, value);
     }
@@ -169,24 +172,33 @@ pub trait BusTyped {
         &self,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         self.adapters_notify_t(AdapterTarget::Name(A::NAME), id, context, value);
     }
 
     // --- optional ergonomic adapter control ---
     #[allow(dead_code)]
-    fn adapter_start(&self, name: &'static str) where Self: Sized {
+    fn adapter_start(&self, name: &'static str)
+    where
+        Self: Sized,
+    {
         self.adapter(AdapterControl::Start(AdapterTarget::Name(name)));
     }
 
     #[allow(dead_code)]
-    fn adapter_stop(&self, name: &'static str) where Self: Sized {
+    fn adapter_stop(&self, name: &'static str)
+    where
+        Self: Sized,
+    {
         self.adapter(AdapterControl::Stop(AdapterTarget::Name(name)));
     }
 
     #[allow(dead_code)]
-    fn adapter_restart(&self, name: &'static str) where Self: Sized {
+    fn adapter_restart(&self, name: &'static str)
+    where
+        Self: Sized,
+    {
         self.adapter(AdapterControl::Restart(AdapterTarget::Name(name)));
     }
 
@@ -201,7 +213,7 @@ impl<B: Bus + ?Sized> BusTyped for B {
         target: ActionTarget,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         let ev = Arc::new(ErasedTopic::new(id, context, value));
         self.action_notify(target, ev);
@@ -213,7 +225,7 @@ impl<B: Bus + ?Sized> BusTyped for B {
         target: AdapterTarget,
         id: TopicId<T>,
         context: Option<String>,
-        value: T
+        value: T,
     ) {
         let ev = Arc::new(ErasedTopic::new(id, context, value));
         self.adapters_notify(target, ev);

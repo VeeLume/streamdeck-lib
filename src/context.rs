@@ -1,9 +1,13 @@
 // lib/context.rs
-use std::{ any::{ Any, TypeId }, collections::HashMap, sync::{ Arc, RwLock } };
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
-use serde_json::{ Map, Value };
+use serde_json::{Map, Value};
 
-use crate::logger::{ ActionLog, Level };
+use crate::logger::{ActionLog, Level};
 use crate::sd_protocol::SdClient;
 
 // ======================
@@ -22,7 +26,11 @@ pub struct GlobalSettings {
 
 impl GlobalSettings {
     pub(crate) fn new(sd: Arc<SdClient>, log: Arc<dyn ActionLog>) -> Self {
-        Self { sd, log, map: Arc::new(RwLock::new(Map::new())) }
+        Self {
+            sd,
+            log,
+            map: Arc::new(RwLock::new(Map::new())),
+        }
     }
 
     // ---- SD <-> cache sync (no push) -----------------------------------
@@ -34,11 +42,10 @@ impl GlobalSettings {
             Ok(mut w) => {
                 *w = from_sd;
             }
-            Err(_) =>
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: write lock poisoned while hydrating from SD; keeping old cache"
-                ),
+            Err(_) => self.log.log_level(
+                Level::Error,
+                "GlobalSettings: write lock poisoned while hydrating from SD; keeping old cache",
+            ),
         }
     }
 
@@ -51,7 +58,7 @@ impl GlobalSettings {
             Err(_) => {
                 self.log.log_level(
                     Level::Error,
-                    "GlobalSettings: read lock poisoned during snapshot; returning empty map"
+                    "GlobalSettings: read lock poisoned during snapshot; returning empty map",
                 );
                 Map::new()
             }
@@ -65,7 +72,7 @@ impl GlobalSettings {
             Err(_) => {
                 self.log.log_level(
                     Level::Error,
-                    "GlobalSettings: read lock poisoned during get; returning None"
+                    "GlobalSettings: read lock poisoned during get; returning None",
                 );
                 None
             }
@@ -86,7 +93,7 @@ impl GlobalSettings {
             Err(_) => {
                 self.log.log_level(
                     Level::Error,
-                    "GlobalSettings: read lock poisoned during get_many; returning empty"
+                    "GlobalSettings: read lock poisoned during get_many; returning empty",
                 );
             }
         }
@@ -97,37 +104,33 @@ impl GlobalSettings {
 
     /// Replace all settings and push.
     pub fn replace(&self, new_map: Map<String, Value>) {
-        if
-            let Some(snapshot) = self.with_write_snapshot(|w| {
-                *w = new_map;
-            })
-        {
+        if let Some(snapshot) = self.with_write_snapshot(|w| {
+            *w = new_map;
+        }) {
             self.sd.set_global_settings(snapshot);
         }
     }
 
     /// Set a single key and push.
     pub fn set(&self, key: impl Into<String>, value: Value) {
-        if
-            let Some(snapshot) = self.with_write_snapshot(|w| {
-                w.insert(key.into(), value);
-            })
-        {
+        if let Some(snapshot) = self.with_write_snapshot(|w| {
+            w.insert(key.into(), value);
+        }) {
             self.sd.set_global_settings(snapshot);
         }
     }
 
     /// Set multiple keys and push.
     pub fn set_many<I, K>(&self, entries: I)
-        where I: IntoIterator<Item = (K, Value)>, K: Into<String>
+    where
+        I: IntoIterator<Item = (K, Value)>,
+        K: Into<String>,
     {
-        if
-            let Some(snapshot) = self.with_write_snapshot(|w| {
-                for (k, v) in entries {
-                    w.insert(k.into(), v);
-                }
-            })
-        {
+        if let Some(snapshot) = self.with_write_snapshot(|w| {
+            for (k, v) in entries {
+                w.insert(k.into(), v);
+            }
+        }) {
             self.sd.set_global_settings(snapshot);
         }
     }
@@ -141,24 +144,20 @@ impl GlobalSettings {
 
     /// Delete a single key and push.
     pub fn delete(&self, key: &str) {
-        if
-            let Some(snapshot) = self.with_write_snapshot(|w| {
-                w.remove(key);
-            })
-        {
+        if let Some(snapshot) = self.with_write_snapshot(|w| {
+            w.remove(key);
+        }) {
             self.sd.set_global_settings(snapshot);
         }
     }
 
     /// Delete multiple keys and push.
     pub fn delete_many(&self, keys: &[&str]) {
-        if
-            let Some(snapshot) = self.with_write_snapshot(|w| {
-                for &k in keys {
-                    w.remove(k);
-                }
-            })
-        {
+        if let Some(snapshot) = self.with_write_snapshot(|w| {
+            for &k in keys {
+                w.remove(k);
+            }
+        }) {
             self.sd.set_global_settings(snapshot);
         }
     }
@@ -168,7 +167,10 @@ impl GlobalSettings {
     /// The closure receives a mutable view of the cached map. After it returns,
     /// the fresh snapshot is pushed via `set_global_settings`.
     /// Returns the closure's value on success, or `None` if the write lock was poisoned.
-    pub fn with_mut<R, F>(&self, f: F) -> Option<R> where F: FnOnce(&mut Map<String, Value>) -> R {
+    pub fn with_mut<R, F>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Map<String, Value>) -> R,
+    {
         match self.map.write() {
             Ok(mut w) => {
                 let ret = f(&mut w);
@@ -180,7 +182,7 @@ impl GlobalSettings {
             Err(_) => {
                 self.log.log_level(
                     Level::Error,
-                    "GlobalSettings: write lock poisoned in with_mut; skipping mutation & push"
+                    "GlobalSettings: write lock poisoned in with_mut; skipping mutation & push",
                 );
                 None
             }
@@ -191,7 +193,8 @@ impl GlobalSettings {
 
     /// Helper: run a write op and return the fresh snapshot, logging on lock errors.
     fn with_write_snapshot<F>(&self, f: F) -> Option<Map<String, Value>>
-        where F: FnOnce(&mut Map<String, Value>)
+    where
+        F: FnOnce(&mut Map<String, Value>),
     {
         match self.map.write() {
             Ok(mut w) => {
@@ -201,7 +204,7 @@ impl GlobalSettings {
             Err(_) => {
                 self.log.log_level(
                     Level::Error,
-                    "GlobalSettings: write lock poisoned; skipping mutation & push"
+                    "GlobalSettings: write lock poisoned; skipping mutation & push",
                 );
                 None
             }
@@ -224,7 +227,10 @@ impl Extensions {
     }
 
     /// Provide a typed extension (e.g., `TemplateStore`, `ActiveChar`, `BindingsStore`).
-    pub fn provide<T>(&self, value: Arc<T>) -> &Self where T: Send + Sync + 'static {
+    pub fn provide<T>(&self, value: Arc<T>) -> &Self
+    where
+        T: Send + Sync + 'static,
+    {
         if let Ok(mut w) = self.0.write() {
             w.insert(TypeId::of::<T>(), value);
         }
@@ -232,7 +238,10 @@ impl Extensions {
     }
 
     /// Fetch a typed extension. Returns `None` if not registered.
-    pub fn get<T>(&self) -> Option<Arc<T>> where T: Send + Sync + 'static {
+    pub fn get<T>(&self) -> Option<Arc<T>>
+    where
+        T: Send + Sync + 'static,
+    {
         self.0
             .read()
             .ok()
@@ -240,9 +249,15 @@ impl Extensions {
             .and_then(|arc_any| arc_any.downcast::<T>().ok())
     }
 
-    pub fn require<T>(&self) -> Arc<T> where T: Send + Sync + 'static {
+    pub fn require<T>(&self) -> Arc<T>
+    where
+        T: Send + Sync + 'static,
+    {
         self.get::<T>().unwrap_or_else(|| {
-            panic!("Extensions: missing required extension {}", std::any::type_name::<T>())
+            panic!(
+                "Extensions: missing required extension {}",
+                std::any::type_name::<T>()
+            )
         })
     }
 }
@@ -267,10 +282,17 @@ impl Context {
         log: Arc<dyn ActionLog>,
         plugin_uuid: String,
         exts: Extensions,
-        bus: Arc<dyn crate::bus::Bus>
+        bus: Arc<dyn crate::bus::Bus>,
     ) -> Self {
         let globals = GlobalSettings::new(Arc::clone(&sd), Arc::clone(&log));
-        Self { sd, log, plugin_uuid, globals, exts, bus }
+        Self {
+            sd,
+            log,
+            plugin_uuid,
+            globals,
+            exts,
+            bus,
+        }
     }
 
     pub fn sd(&self) -> &SdClient {
@@ -292,13 +314,18 @@ impl Context {
         self.exts.clone()
     }
 
-    pub fn try_ext<T>(&self) -> Option<Arc<T>> where T: Send + Sync + 'static {
+    pub fn try_ext<T>(&self) -> Option<Arc<T>>
+    where
+        T: Send + Sync + 'static,
+    {
         self.exts.get::<T>()
     }
 }
 
 impl std::fmt::Debug for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Context").field("plugin_uuid", &self.plugin_uuid).finish()
+        f.debug_struct("Context")
+            .field("plugin_uuid", &self.plugin_uuid)
+            .finish()
     }
 }

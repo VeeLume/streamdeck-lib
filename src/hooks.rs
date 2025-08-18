@@ -1,11 +1,11 @@
 // hooks.rs
-use std::sync::Arc;
 use crate::{
     context::Context,
-    events::{ AdapterControl, AdapterTarget, ErasedTopic },
+    events::{AdapterControl, AdapterTarget, ErasedTopic},
     logger::Level,
-    sd_protocol::{ DeviceInfo, Outgoing, StreamDeckEvent },
+    sd_protocol::{DeviceInfo, Outgoing, StreamDeckEvent},
 };
+use std::sync::Arc;
 
 /// Everything that can be observed.
 #[non_exhaustive]
@@ -48,14 +48,16 @@ impl AppHooks {
     }
 
     pub fn add<F>(mut self, f: F) -> Self
-        where F: for<'a> Fn(&'a Context, &'a HookEvent<'a>) + Send + Sync + 'static
+    where
+        F: for<'a> Fn(&'a Context, &'a HookEvent<'a>) + Send + Sync + 'static,
     {
         self.listeners.push(Arc::new(f));
         self
     }
 
     pub fn push<F>(&mut self, f: F)
-        where F: for<'a> Fn(&'a Context, &'a HookEvent<'a>) + Send + Sync + 'static
+    where
+        F: for<'a> Fn(&'a Context, &'a HookEvent<'a>) + Send + Sync + 'static,
     {
         self.listeners.push(Arc::new(f));
     }
@@ -134,7 +136,7 @@ impl AppHooks {
     pub fn fire_did_receive_global_settings(
         &self,
         cx: &Context,
-        gs: &serde_json::Map<String, serde_json::Value>
+        gs: &serde_json::Map<String, serde_json::Value>,
     ) {
         self.fire(cx, &HookEvent::DidReceiveGlobalSettings(gs));
     }

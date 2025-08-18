@@ -1,14 +1,17 @@
 // adapters_manager.rs
-use std::{ collections::HashMap, sync::Arc, time::{ Duration, Instant } };
-use crossbeam_channel::{ unbounded, Sender };
 use crate::{
-    adapters::{ Adapter, AdapterHandle, StartPolicy },
+    adapters::{Adapter, AdapterHandle, StartPolicy},
     bus::Bus,
     context::Context,
-    debug,
-    error,
-    events::{ AdapterTarget, ErasedTopic },
+    debug, error,
+    events::{AdapterTarget, ErasedTopic},
     logger::ActionLog,
+};
+use crossbeam_channel::{Sender, unbounded};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 struct RunningAdapter {
@@ -30,7 +33,7 @@ pub(crate) struct AdapterManager {
 
     // debounce for stopping OnAppLaunch adapters after the *last* app quits
     app_stop_due: Option<Instant>, // <— when to stop OnAppLaunch adapters
-    app_debounce: Duration, // <— debounce delay
+    app_debounce: Duration,        // <— debounce delay
 
     // infra
     bus: Arc<dyn Bus>,
@@ -41,7 +44,7 @@ impl AdapterManager {
     pub fn new(
         adapters: &[Arc<dyn Adapter + Send + Sync + 'static>],
         bus: Arc<dyn Bus>,
-        logger: Arc<dyn ActionLog>
+        logger: Arc<dyn ActionLog>,
     ) -> Self {
         Self {
             registry: adapters.iter().cloned().collect(),
@@ -70,7 +73,13 @@ impl AdapterManager {
                 let name = a.name();
                 let policy = a.policy();
                 let topics = a.topics();
-                self.running.push(RunningAdapter { name, policy, topics, tx, handle });
+                self.running.push(RunningAdapter {
+                    name,
+                    policy,
+                    topics,
+                    tx,
+                    handle,
+                });
 
                 self.by_name.entry(name).or_default().push(idx);
                 for &t in topics {
@@ -86,10 +95,11 @@ impl AdapterManager {
     fn start_where(
         &mut self,
         cx: &Context,
-        mut pred: impl FnMut(&Arc<dyn Adapter + Send + Sync + 'static>) -> bool
+        mut pred: impl FnMut(&Arc<dyn Adapter + Send + Sync + 'static>) -> bool,
     ) {
         // clone Arcs first to avoid borrowing self across start calls
-        let to_start: Vec<_> = self.registry
+        let to_start: Vec<_> = self
+            .registry
             .iter()
             .cloned()
             .filter(|a| pred(a))
@@ -172,12 +182,7 @@ impl AdapterManager {
     }
 
     pub(crate) fn start_by_topic(&mut self, cx: &Context, topic: &str) {
-        self.start_where(cx, |a|
-            a
-                .topics()
-                .iter()
-                .any(|&t| t == topic)
-        );
+        self.start_where(cx, |a| a.topics().iter().any(|&t| t == topic));
     }
 
     pub(crate) fn stop_by_topic(&mut self, topic: &str) {
@@ -253,8 +258,7 @@ impl AdapterManager {
             self.app_stop_due = Some(Instant::now() + self.app_debounce);
             debug!(
                 self.logger,
-                "⏳ scheduling stop of OnAppLaunch adapters in {:?}",
-                self.app_debounce
+                "⏳ scheduling stop of OnAppLaunch adapters in {:?}", self.app_debounce
             );
         }
     }
@@ -265,7 +269,10 @@ impl AdapterManager {
             if Instant::now() >= due && self.apps_up == 0 {
                 self.stop_by_policy(StartPolicy::OnAppLaunch);
                 self.app_stop_due = None;
-                debug!(self.logger, "🛑 OnAppLaunch adapters stopped (no apps, debounced)");
+                debug!(
+                    self.logger,
+                    "🛑 OnAppLaunch adapters stopped (no apps, debounced)"
+                );
             }
         }
     }
