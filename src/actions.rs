@@ -94,16 +94,6 @@ impl ActionFactory {
     }
 }
 
-/// Keep `id()` and `ID` in sync with zero boilerplate.
-#[macro_export]
-macro_rules! action_id_static {
-    ($ty:ty, $id:expr) => {
-+       impl $crate::ActionStatic for $ty {
-            const ID: &'static str = $id;
-        }
-    };
-}
-
 /// Tiny helper so you can register with less ceremony.
 #[macro_export]
 macro_rules! simple_action_factory {
