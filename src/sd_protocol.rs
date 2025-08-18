@@ -376,66 +376,58 @@ impl std::fmt::Display for StreamDeckEvent {
             DeviceDidDisconnect { .. } => write!(f, "DeviceDidDisconnect"),
             DialDown {
                 action, context, ..
-            } => write!(f, "DialDown(action={}, context={})", action, context),
+            } => write!(f, "DialDown(action={action}, context={context})"),
             DialRotate {
                 action, context, ..
-            } => write!(f, "DialRotate(action={}, context={})", action, context),
+            } => write!(f, "DialRotate(action={action}, context={context})"),
             DialUp {
                 action, context, ..
-            } => write!(f, "DialUp(action={}, context={})", action, context),
+            } => write!(f, "DialUp(action={action}, context={context})"),
             DidReceiveDeepLink { .. } => write!(f, "DidReceiveDeepLink"),
             DidReceiveGlobalSettings { .. } => write!(f, "DidReceiveGlobalSettings"),
             DidReceivePropertyInspectorMessage {
                 action, context, ..
             } => write!(
                 f,
-                "DidReceivePropertyInspectorMessage(action={}, context={})",
-                action, context
+                "DidReceivePropertyInspectorMessage(action={action}, context={context})"
             ),
             DidReceiveSettings {
                 action, context, ..
-            } => write!(
-                f,
-                "DidReceiveSettings(action={}, context={})",
-                action, context
-            ),
+            } => write!(f, "DidReceiveSettings(action={action}, context={context})"),
             KeyDown {
                 action, context, ..
-            } => write!(f, "KeyDown(action={}, context={})", action, context),
+            } => write!(f, "KeyDown(action={action}, context={context})"),
             KeyUp {
                 action, context, ..
-            } => write!(f, "KeyUp(action={}, context={})", action, context),
+            } => write!(f, "KeyUp(action={action}, context={context})"),
             PropertyInspectorDidAppear {
                 action, context, ..
             } => write!(
                 f,
-                "PropertyInspectorDidAppear(action={}, context={})",
-                action, context
+                "PropertyInspectorDidAppear(action={action}, context={context})"
             ),
             PropertyInspectorDidDisappear {
                 action, context, ..
             } => write!(
                 f,
-                "PropertyInspectorDidDisappear(action={}, context={})",
-                action, context
+                "PropertyInspectorDidDisappear(action={action}, context={context})"
             ),
             SystemDidWakeUp => write!(f, "SystemDidWakeUp"),
             TitleParametersDidChange {
                 action, context, ..
             } => write!(
                 f,
-                "TitleParametersDidChange(action={}, context={})",
-                action, context
+                "TitleParametersDidChange(action={action}, context={context})"
             ),
             TouchTap {
                 action, context, ..
-            } => write!(f, "TouchTap(action={}, context={})", action, context),
+            } => write!(f, "TouchTap(action={action}, context={context})"),
             WillAppear {
                 action, context, ..
-            } => write!(f, "WillAppear(action={}, context={})", action, context),
+            } => write!(f, "WillAppear(action={action}, context={context})"),
             WillDisappear {
                 action, context, ..
-            } => write!(f, "WillDisappear(action={}, context={})", action, context),
+            } => write!(f, "WillDisappear(action={action}, context={context})"),
         }
     }
 }

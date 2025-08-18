@@ -185,7 +185,7 @@ impl FileLogger {
                                 if let Err(e) = rotate_logs_startup(&worker_path, cfg.max_rotations)
                                 {
                                     // We can't log about logging, but try stderr.
-                                    let _ = writeln!(io::stderr(), "log rotation error: {}", e);
+                                    let _ = writeln!(io::stderr(), "log rotation error: {e}");
                                 }
                                 match OpenOptions::new()
                                     .create(true)
@@ -197,7 +197,7 @@ impl FileLogger {
                                         bytes_written = 0;
                                     }
                                     Err(e) => {
-                                        let _ = writeln!(io::stderr(), "log reopen error: {}", e);
+                                        let _ = writeln!(io::stderr(), "log reopen error: {e}");
                                         // Keep trying to write to old file to avoid losing logs
                                     }
                                 }
@@ -261,7 +261,7 @@ impl Drop for FileLogger {
             .err()
         {
             // Best-effort: you could write to stderr here if you want.
-            let _ = writeln!(io::stderr(), "logger worker join failed: {:?}", worker);
+            let _ = writeln!(io::stderr(), "logger worker join failed: {worker:?}");
         }
     }
 }

@@ -47,7 +47,7 @@ impl AdapterManager {
         logger: Arc<dyn ActionLog>,
     ) -> Self {
         Self {
-            registry: adapters.iter().cloned().collect(),
+            registry: adapters.to_vec(),
             running: Vec::new(),
             by_name: HashMap::new(),
             by_topic: HashMap::new(),
@@ -62,7 +62,7 @@ impl AdapterManager {
     // ---- small helpers --------------------------------------------------
 
     fn is_running_name(&self, name: &str) -> bool {
-        self.by_name.get(name).map_or(false, |v| !v.is_empty())
+        self.by_name.get(name).is_some_and(|v| !v.is_empty())
     }
 
     fn start_adapter(&mut self, a: &Arc<dyn Adapter + Send + Sync + 'static>, cx: &Context) {
@@ -101,10 +101,9 @@ impl AdapterManager {
         let to_start: Vec<_> = self
             .registry
             .iter()
+            .filter(|&a| pred(a))
+            .filter(|&a| !self.is_running_name(a.name()))
             .cloned()
-            .filter(|a| pred(a))
-            // avoid duplicate instances by name
-            .filter(|a| !self.is_running_name(a.name()))
             .collect();
 
         for a in to_start {
@@ -178,11 +177,11 @@ impl AdapterManager {
 
     #[inline]
     fn has_topic(topics: &'static [&'static str], t: &str) -> bool {
-        topics.iter().any(|&x| x == t)
+        topics.contains(&t)
     }
 
     pub(crate) fn start_by_topic(&mut self, cx: &Context, topic: &str) {
-        self.start_where(cx, |a| a.topics().iter().any(|&t| t == topic));
+        self.start_where(cx, |a| a.topics().contains(&topic));
     }
 
     pub(crate) fn stop_by_topic(&mut self, topic: &str) {
@@ -201,7 +200,7 @@ impl AdapterManager {
             AdapterTarget::All => self.notify_all(note),
             AdapterTarget::Policy(p) => self.notify_policy(p, note),
             AdapterTarget::Topic(t) => self.notify_topic_name(t, note),
-            AdapterTarget::Name(n) => self.notify_name(&n, note),
+            AdapterTarget::Name(n) => self.notify_name(n, note),
         }
     }
 

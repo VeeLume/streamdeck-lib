@@ -8,6 +8,12 @@ use super::types::{InputStep, MouseButton, Scan};
 
 pub struct WinSynth;
 
+impl Default for WinSynth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WinSynth {
     pub fn new() -> Self {
         Self

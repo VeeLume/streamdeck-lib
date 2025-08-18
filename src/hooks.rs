@@ -47,7 +47,7 @@ impl AppHooks {
         Self::default()
     }
 
-    pub fn add<F>(mut self, f: F) -> Self
+    pub fn append<F>(mut self, f: F) -> Self
     where
         F: for<'a> Fn(&'a Context, &'a HookEvent<'a>) + Send + Sync + 'static,
     {
@@ -65,7 +65,7 @@ impl AppHooks {
     #[inline]
     pub fn fire(&self, cx: &Context, ev: &HookEvent) {
         for l in &self.listeners {
-            l(cx, &ev);
+            l(cx, ev);
         }
     }
 

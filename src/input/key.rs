@@ -144,9 +144,9 @@ impl fmt::Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Key::Custom { scan, extended } => {
-                write!(f, "Custom(scan: {}, extended: {})", scan, extended)
+                write!(f, "Custom(scan: {scan}, extended: {extended})")
             }
-            _ => write!(f, "{:?}", self),
+            _ => write!(f, "{self:?}"),
         }
     }
 }
@@ -184,7 +184,7 @@ impl Key {
         // letters
         if s.len() == 1 {
             if let Some(c) = s.chars().next() {
-                if ('a'..='z').contains(&c) {
+                if c.is_ascii_lowercase() {
                     return Some(match c {
                         'a' => Key::A,
                         'b' => Key::B,
@@ -217,7 +217,7 @@ impl Key {
                         }
                     });
                 }
-                if ('0'..='9').contains(&c) {
+                if c.is_ascii_digit() {
                     return Some(match c {
                         '0' => Key::D0,
                         '1' => Key::D1,

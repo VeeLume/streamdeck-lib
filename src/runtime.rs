@@ -137,7 +137,7 @@ pub fn run(
                                 serde_json::Map<String, serde_json::Value>,
                             >(&text)
                             .map_err(|e| format!("json parse error: {e}"))
-                            .and_then(|m| parse_incoming_owned(m));
+                            .and_then(parse_incoming_owned);
 
                             match parsed {
                                 Ok(ev) => {
