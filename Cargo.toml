@@ -1,0 +1,37 @@
+[package]
+name = "streamdeck-lib"
+version = "0.1.0"
+edition = "2024"
+# authors = ["you <you@example.com>"]   # optional
+# license = "MIT OR Apache-2.0"         # recommended
+
+[dependencies]
+anyhow = "1.0.99"
+chrono = "0.4.41"
+crossbeam-channel = "0.5.15"
+directories = "6.0.0"
+num_enum = "0.7.4"
+
+# Keep reqwest lean; you already picked features explicitly.
+reqwest = { version = "0.12.22", features = [
+    "http2",
+    "default-tls",
+    "charset",
+    "json",
+    "stream",
+    "system-proxy",
+] }
+
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.142" }
+serde_repr = "0.1.20"
+thiserror = "2.0.14"
+
+# The old `websocket` crate is fine for this use; keep it minimal.
+websocket = { version = "0.27.1", default-features = false, features = ["sync"]}
+
+# Windows bindings only when compiling for Windows.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61.3", features = [
+    "Win32_UI_Input_KeyboardAndMouse",      # SendInput
+] }
