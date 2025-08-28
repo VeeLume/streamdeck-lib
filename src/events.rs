@@ -108,15 +108,15 @@ impl ErasedTopic {
         self.name == id.name && self.payload.is::<T>()
     }
     pub fn downcast<T: 'static>(&self, id: TopicId<T>) -> Option<&T> {
-        (self.name == id.name).then(|| ())?;
+        (self.name == id.name).then_some(())?;
         self.payload.downcast_ref::<T>()
     }
     pub fn downcast_mut<T: 'static>(&mut self, id: TopicId<T>) -> Option<&mut T> {
-        (self.name == id.name).then(|| ())?;
+        (self.name == id.name).then_some(())?;
         self.payload.downcast_mut::<T>()
     }
     pub fn into_downcast<T: 'static>(self, id: TopicId<T>) -> Option<T> {
-        (self.name == id.name).then(|| ())?;
+        (self.name == id.name).then_some(())?;
         self.payload.downcast::<T>().ok().map(|b| *b)
     }
 }
