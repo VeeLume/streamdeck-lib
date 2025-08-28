@@ -93,6 +93,16 @@ impl ActionManager {
         }
     }
 
+    pub(crate) fn notify_topic(&mut self, cx: &Context, topic_name: &str, event: Arc<ErasedTopic>) {
+        if let Some(keys) = self.by_topic.get(topic_name) {
+            for (aid, ctx) in keys.clone() {
+                if let Some(a) = self.instances.get_mut(&(aid.clone(), ctx.clone())) {
+                    a.on_notify(cx, &ctx, event.as_ref());
+                }
+            }
+        }
+    }
+
     /// Unified target-based notify (mirrors RuntimeMsg::ActionNotify).
     pub fn notify_target(&mut self, cx: &Context, target: ActionTarget, event: Arc<ErasedTopic>) {
         match target {
@@ -105,6 +115,7 @@ impl ActionManager {
                     }
                 }
             }
+            #[allow(deprecated)]
             ActionTarget::Topic(topic_name) => {
                 if let Some(keys) = self.by_topic.get(topic_name) {
                     // clone keys to avoid borrowing self mutably twice

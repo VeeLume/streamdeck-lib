@@ -10,8 +10,11 @@ use std::{any::Any, marker::PhantomData, sync::Arc};
 pub enum AdapterTarget {
     All,
     Policy(StartPolicy),
+    /// Deprecated: use `Label` for lifecycle; use `publish_t` for messaging.
+    #[deprecated(note = "Use AdapterTarget::Label for start/stop; use publish_t for pub/sub")]
     Topic(&'static str),
     Name(&'static str),
+    Label(&'static str),
 }
 
 impl AdapterTarget {
@@ -21,11 +24,16 @@ impl AdapterTarget {
     pub fn policy(p: StartPolicy) -> Self {
         Self::Policy(p)
     }
+    #[deprecated(note = "Use AdapterTarget::Label for lifecycle")]
     pub fn topic(t: &'static str) -> Self {
+        #[allow(deprecated)]
         Self::Topic(t)
     }
     pub fn name(n: &'static str) -> Self {
         Self::Name(n)
+    }
+    pub fn label(l: &'static str) -> Self {
+        Self::Label(l)
     }
 }
 
@@ -34,6 +42,7 @@ impl AdapterTarget {
 pub enum ActionTarget {
     All,
     Context(String),
+    #[deprecated(note = "Use Bus::publish_t(...) instead")]
     Topic(&'static str),
     Id(&'static str),
 }
@@ -45,7 +54,9 @@ impl ActionTarget {
     pub fn context(id: impl Into<String>) -> Self {
         Self::Context(id.into())
     }
+    #[deprecated(note = "Use Bus::publish_t(...) instead")]
     pub fn topic(t: &'static str) -> Self {
+        #[allow(deprecated)]
         Self::Topic(t)
     }
     pub fn id(n: &'static str) -> Self {
@@ -77,28 +88,13 @@ impl<T: 'static> TopicId<T> {
 
 pub struct ErasedTopic {
     name: &'static str,
-    context: Option<String>,
     payload: Box<dyn Any + Send + Sync>,
 }
 
-impl std::fmt::Debug for ErasedTopic {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ErasedTopic")
-            .field("name", &self.name)
-            .field("context", &self.context)
-            .finish_non_exhaustive()
-    }
-}
-
 impl ErasedTopic {
-    pub fn new<T: 'static + Send + Sync>(
-        id: TopicId<T>,
-        context: Option<String>,
-        value: T,
-    ) -> Self {
+    pub fn new<T: 'static + Send + Sync>(id: TopicId<T>, value: T) -> Self {
         Self {
             name: id.name,
-            context,
             payload: Box::new(value),
         }
     }
@@ -108,32 +104,29 @@ impl ErasedTopic {
         self.name
     }
     #[inline]
-    pub fn context(&self) -> Option<&str> {
-        self.context.as_deref()
-    }
-
-    #[inline]
     pub fn is<T: 'static>(&self, id: TopicId<T>) -> bool {
         self.name == id.name && self.payload.is::<T>()
     }
-
     pub fn downcast<T: 'static>(&self, id: TopicId<T>) -> Option<&T> {
-        if self.name != id.name {
-            return None;
-        }
+        (self.name == id.name).then(|| ())?;
         self.payload.downcast_ref::<T>()
     }
     pub fn downcast_mut<T: 'static>(&mut self, id: TopicId<T>) -> Option<&mut T> {
-        if self.name != id.name {
-            return None;
-        }
+        (self.name == id.name).then(|| ())?;
         self.payload.downcast_mut::<T>()
     }
     pub fn into_downcast<T: 'static>(self, id: TopicId<T>) -> Option<T> {
-        if self.name != id.name {
-            return None;
-        }
+        (self.name == id.name).then(|| ())?;
         self.payload.downcast::<T>().ok().map(|b| *b)
+    }
+}
+
+// Debug impl no longer prints context
+impl std::fmt::Debug for ErasedTopic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ErasedTopic")
+            .field("name", &self.name)
+            .finish_non_exhaustive()
     }
 }
 
@@ -147,6 +140,7 @@ pub(crate) enum RuntimeMsg {
         msg: String,
         level: Level,
     },
+    Publish(Arc<ErasedTopic>),
     ActionNotify {
         target: ActionTarget,
         event: Arc<ErasedTopic>,

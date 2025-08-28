@@ -18,6 +18,7 @@ struct RunningAdapter {
     name: &'static str,
     policy: StartPolicy,
     topics: &'static [&'static str],
+    labels: &'static [&'static str],
     tx: Sender<Arc<ErasedTopic>>,
     handle: AdapterHandle,
 }
@@ -27,6 +28,7 @@ pub(crate) struct AdapterManager {
     running: Vec<RunningAdapter>,
     by_name: HashMap<&'static str, Vec<usize>>,
     by_topic: HashMap<&'static str, Vec<usize>>,
+    by_label: HashMap<&'static str, Vec<usize>>,
 
     // lifecycle counters
     apps_up: usize,
@@ -51,6 +53,7 @@ impl AdapterManager {
             running: Vec::new(),
             by_name: HashMap::new(),
             by_topic: HashMap::new(),
+            by_label: HashMap::new(),
             apps_up: 0,
             app_stop_due: None,
             app_debounce: Duration::from_millis(250),
@@ -73,10 +76,12 @@ impl AdapterManager {
                 let name = a.name();
                 let policy = a.policy();
                 let topics = a.topics();
+                let labels = a.labels();
                 self.running.push(RunningAdapter {
                     name,
                     policy,
                     topics,
+                    labels,
                     tx,
                     handle,
                 });
@@ -84,6 +89,9 @@ impl AdapterManager {
                 self.by_name.entry(name).or_default().push(idx);
                 for &t in topics {
                     self.by_topic.entry(t).or_default().push(idx);
+                }
+                for &l in labels {
+                    self.by_label.entry(l).or_default().push(idx);
                 }
 
                 debug!(self.logger, "▶ started adapter: {}", name);
@@ -116,6 +124,7 @@ impl AdapterManager {
         let mut old = std::mem::take(&mut self.running);
         self.by_name.clear();
         self.by_topic.clear();
+        self.by_label.clear();
 
         let mut new_running: Vec<RunningAdapter> = Vec::with_capacity(old.len());
         for r in old.drain(..) {
@@ -124,6 +133,9 @@ impl AdapterManager {
                 self.by_name.entry(r.name).or_default().push(idx);
                 for &t in r.topics {
                     self.by_topic.entry(t).or_default().push(idx);
+                }
+                for &l in r.labels {
+                    self.by_label.entry(l).or_default().push(idx);
                 }
                 new_running.push(r);
             } else {
@@ -193,14 +205,27 @@ impl AdapterManager {
         self.start_by_topic(cx, topic);
     }
 
+    pub(crate) fn start_by_label(&mut self, cx: &Context, label: &str) {
+        self.start_where(cx, |a| a.labels().contains(&label));
+    }
+    pub(crate) fn stop_by_label(&mut self, label: &str) {
+        self.stop_where(|r| !r.labels.contains(&label));
+    }
+    pub(crate) fn restart_by_label(&mut self, cx: &Context, label: &str) {
+        self.stop_by_label(label);
+        self.start_by_label(cx, label);
+    }
+
     // ---- notifications (you already had these) -------------------------
 
     pub(crate) fn notify_target(&self, target: AdapterTarget, note: Arc<ErasedTopic>) {
         match target {
             AdapterTarget::All => self.notify_all(note),
             AdapterTarget::Policy(p) => self.notify_policy(p, note),
+            #[allow(deprecated)]
             AdapterTarget::Topic(t) => self.notify_topic_name(t, note),
             AdapterTarget::Name(n) => self.notify_name(n, note),
+            AdapterTarget::Label(l) => self.notify_label(l, note),
         }
     }
 
@@ -228,6 +253,14 @@ impl AdapterManager {
 
     pub(crate) fn notify_topic_name(&self, topic_name: &str, note: Arc<ErasedTopic>) {
         if let Some(ixs) = self.by_topic.get(topic_name) {
+            for &i in ixs {
+                let _ = self.running[i].tx.send(Arc::clone(&note));
+            }
+        }
+    }
+
+    pub(crate) fn notify_label(&self, label: &str, note: Arc<ErasedTopic>) {
+        if let Some(ixs) = self.by_label.get(label) {
             for &i in ixs {
                 let _ = self.running[i].tx.send(Arc::clone(&note));
             }

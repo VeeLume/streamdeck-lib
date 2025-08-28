@@ -78,7 +78,6 @@ pub trait AdapterStatic {
     const NAME: &'static str;
 }
 
-/// Implement this per “sidecar” (Mumble poller, file watcher, game API poller, …).
 pub trait Adapter: Send + Sync + 'static {
     fn name(&self) -> &'static str;
     fn policy(&self) -> StartPolicy {
@@ -86,6 +85,10 @@ pub trait Adapter: Send + Sync + 'static {
     }
     fn topics(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    fn labels(&self) -> &'static [&'static str] {
+        self.topics()
     }
 
     fn start(

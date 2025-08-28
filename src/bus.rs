@@ -2,7 +2,7 @@ use crossbeam_channel::Sender;
 use std::sync::Arc;
 
 use crate::{
-    adapters::{AdapterStatic, StartPolicy},
+    adapters::StartPolicy,
     events::{ActionTarget, AdapterControl, AdapterTarget, ErasedTopic, RuntimeMsg, TopicId},
     logger::Level,
     sd_protocol::Outgoing,
@@ -19,6 +19,7 @@ pub trait Bus: Send + Sync {
     // Unified notifies (erased payload + target)
     fn action_notify(&self, target: ActionTarget, event: Arc<ErasedTopic>);
     fn adapters_notify(&self, target: AdapterTarget, event: Arc<ErasedTopic>);
+    fn publish(&self, event: Arc<ErasedTopic>);
 
     // Adapter control
     fn adapter(&self, ctl: AdapterControl);
@@ -55,6 +56,9 @@ impl Bus for Emitter {
     fn adapters_notify(&self, target: AdapterTarget, event: Arc<ErasedTopic>) {
         let _ = self.tx.send(RuntimeMsg::AdapterNotify { target, event });
     }
+    fn publish(&self, event: Arc<ErasedTopic>) {
+        let _ = self.tx.send(RuntimeMsg::Publish(event));
+    }
 
     fn adapter(&self, ctl: AdapterControl) {
         let _ = self.tx.send(RuntimeMsg::Adapter(ctl));
@@ -64,159 +68,101 @@ impl Bus for Emitter {
 /// Typed sugar on top of the object-safe Bus.
 /// Kept in the same module so you don’t need a separate import.
 pub trait BusTyped {
-    // ----- actions -----
+    fn publish_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T);
+
     fn action_notify_t<T: 'static + Send + Sync>(
         &self,
         target: ActionTarget,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     );
-
-    fn action_notify_all_t<T: 'static + Send + Sync>(
-        &self,
-        id: TopicId<T>,
-        context: Option<String>,
-        value: T,
-    ) {
-        self.action_notify_t(ActionTarget::All, id, context, value);
+    fn action_notify_all_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T) {
+        self.action_notify_t(ActionTarget::All, id, value);
     }
-
     fn action_notify_context_t<T: 'static + Send + Sync>(
         &self,
         ctx: impl Into<String>,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.action_notify_t(ActionTarget::Context(ctx.into()), id, context, value);
+        self.action_notify_t(ActionTarget::Context(ctx.into()), id, value);
     }
-
     fn action_notify_id_t<T: 'static + Send + Sync>(
         &self,
         action_id: &'static str,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.action_notify_t(ActionTarget::Id(action_id), id, context, value);
+        self.action_notify_t(ActionTarget::Id(action_id), id, value);
     }
-
     fn action_notify_id_of<A: crate::actions::ActionStatic, T: 'static + Send + Sync>(
         &self,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.action_notify_t(ActionTarget::Id(A::ID), id, context, value);
+        self.action_notify_t(ActionTarget::Id(A::ID), id, value);
     }
 
-    fn action_notify_topic_t<T: 'static + Send + Sync>(
-        &self,
-        id: TopicId<T>,
-        context: Option<String>,
-        value: T,
-    ) {
-        self.action_notify_t(ActionTarget::Topic(id.name), id, context, value);
-    }
-
-    // ----- adapters -----
     fn adapters_notify_t<T: 'static + Send + Sync>(
         &self,
         target: AdapterTarget,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     );
-
-    fn adapters_notify_all_t<T: 'static + Send + Sync>(
-        &self,
-        id: TopicId<T>,
-        context: Option<String>,
-        value: T,
-    ) {
-        self.adapters_notify_t(AdapterTarget::All, id, context, value);
+    fn adapters_notify_all_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T) {
+        self.adapters_notify_t(AdapterTarget::All, id, value);
     }
-
     fn adapters_notify_policy_t<T: 'static + Send + Sync>(
         &self,
         policy: StartPolicy,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.adapters_notify_t(AdapterTarget::Policy(policy), id, context, value);
+        self.adapters_notify_t(AdapterTarget::Policy(policy), id, value);
     }
-
     fn adapters_notify_name_t<T: 'static + Send + Sync>(
         &self,
         name: &'static str,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.adapters_notify_t(AdapterTarget::Name(name), id, context, value);
+        self.adapters_notify_t(AdapterTarget::Name(name), id, value);
     }
-
-    fn adapters_notify_topic_t<T: 'static + Send + Sync>(
+    fn adapters_notify_name_of<A: crate::adapters::AdapterStatic, T: 'static + Send + Sync>(
         &self,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        self.adapters_notify_t(AdapterTarget::Topic(id.name), id, context, value);
+        self.adapters_notify_t(AdapterTarget::Name(A::NAME), id, value);
     }
 
-    /// No-string helper: target a named adapter by its **type**.
-    fn adapters_notify_name_of<A: AdapterStatic, T: 'static + Send + Sync>(
-        &self,
-        id: TopicId<T>,
-        context: Option<String>,
-        value: T,
-    ) {
-        self.adapters_notify_t(AdapterTarget::Name(A::NAME), id, context, value);
+    #[deprecated(note = "Use publish_t(...) instead")]
+    fn action_notify_topic_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T) {
+        self.publish_t(id, value);
     }
 
-    // --- optional ergonomic adapter control ---
-    #[allow(dead_code)]
-    fn adapter_start(&self, name: &'static str)
-    where
-        Self: Sized,
-    {
-        self.adapter(AdapterControl::Start(AdapterTarget::Name(name)));
+    #[deprecated(note = "Use publish_t(...) instead")]
+    fn adapters_notify_topic_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T) {
+        self.publish_t(id, value);
     }
 
-    #[allow(dead_code)]
-    fn adapter_stop(&self, name: &'static str)
-    where
-        Self: Sized,
-    {
-        self.adapter(AdapterControl::Stop(AdapterTarget::Name(name)));
-    }
-
-    #[allow(dead_code)]
-    fn adapter_restart(&self, name: &'static str)
-    where
-        Self: Sized,
-    {
-        self.adapter(AdapterControl::Restart(AdapterTarget::Name(name)));
-    }
-
-    /// Expose raw adapter control for the helpers above.
     fn adapter(&self, ctl: AdapterControl);
 }
 
 impl<B: Bus + ?Sized> BusTyped for B {
     #[inline]
+    fn publish_t<T: 'static + Send + Sync>(&self, id: TopicId<T>, value: T) {
+        self.publish(Arc::new(ErasedTopic::new(id, value)));
+    }
+
+    #[inline]
     fn action_notify_t<T: 'static + Send + Sync>(
         &self,
         target: ActionTarget,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        let ev = Arc::new(ErasedTopic::new(id, context, value));
-        self.action_notify(target, ev);
+        self.action_notify(target, Arc::new(ErasedTopic::new(id, value)));
     }
 
     #[inline]
@@ -224,15 +170,13 @@ impl<B: Bus + ?Sized> BusTyped for B {
         &self,
         target: AdapterTarget,
         id: TopicId<T>,
-        context: Option<String>,
         value: T,
     ) {
-        let ev = Arc::new(ErasedTopic::new(id, context, value));
-        self.adapters_notify(target, ev);
+        self.adapters_notify(target, Arc::new(ErasedTopic::new(id, value)));
     }
 
     #[inline]
     fn adapter(&self, ctl: AdapterControl) {
-        Bus::adapter(self, ctl);
+        Bus::adapter(self, ctl)
     }
 }

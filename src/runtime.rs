@@ -2,7 +2,10 @@
 use std::{
     collections::VecDeque,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::Duration,
 };
@@ -11,6 +14,7 @@ use crossbeam_channel::{select, unbounded};
 use websocket::{ClientBuilder, OwnedMessage};
 
 use crate::{
+    ActionTarget,
     action_manager::{ActionManager, dispatch},
     adapters_manager::AdapterManager,
     bus::Emitter,
@@ -24,6 +28,18 @@ use crate::{
     sd_protocol::{self, SdClient, StreamDeckEvent, parse_incoming_owned, serialize_outgoing},
     warn,
 };
+
+fn warn_topic_target_once(logger: &dyn ActionLog) {
+    static DID_WARN: AtomicBool = AtomicBool::new(false);
+    if !DID_WARN.swap(true, Ordering::Relaxed) {
+        warn!(
+            logger,
+            "Deprecated: ActionTarget::Topic / AdapterTarget::Topic used. \
+             This path now behaves like Bus::publish(...). \
+             Migrate to BusTyped::publish_t(...)."
+        );
+    }
+}
 
 fn drain_outgoing(
     outq: &mut VecDeque<sd_protocol::Outgoing>,
@@ -270,19 +286,49 @@ pub fn run(
                         }
                     }
 
+                    Ok(Publish(event)) => {
+                        hooks.fire_action_notify(&cx, &event);
+                        hooks.fire_adapter_notify(&cx, &AdapterTarget::All, event.as_ref());
+                        let name = event.name();
+                        mgr.notify_topic(&cx, name, Arc::clone(&event));
+                        adapter_mgr.notify_topic_name(name, event);
+                    }
                     // ---------- typed action notify ----------
                     Ok(ActionNotify { target, event }) => {
-                        // let hooks see target + topic
-                        hooks.fire_action_notify(&cx, &event);
-                        // fan-out by target (All / Context / Id / Topic)
-                        mgr.notify_target(&cx, target, event);
+                        match target {
+                            #[allow(deprecated)]
+                            ActionTarget::Topic(_t) => {
+                                warn_topic_target_once(logger.as_ref());
+                                // behave like publish: send to actions and adapters subscribed to this topic
+                                let topic = event.name();
+                                // actions
+                                mgr.notify_topic(&cx, topic, Arc::clone(&event));
+                                // adapters
+                                adapter_mgr.notify_topic_name(topic, event);
+                            }
+                            _ => {
+                                hooks.fire_action_notify(&cx, &event);
+                                mgr.notify_target(&cx, target, event);
+                            }
+                        }
                     }
 
                     // ---------- typed adapter notify ----------
                     Ok(AdapterNotify { target, event }) => {
-                        hooks.fire_adapter_notify(&cx, &target, event.as_ref());
-                        // fan-out by target (All / Policy / Name / Topic)
-                        adapter_mgr.notify_target(target, event);
+                        match target {
+                            #[allow(deprecated)]
+                            AdapterTarget::Topic(_t) => {
+                                warn_topic_target_once(logger.as_ref());
+                                let topic = event.name();
+                                // fan-out like publish
+                                mgr.notify_topic(&cx, topic, Arc::clone(&event));
+                                adapter_mgr.notify_topic_name(topic, event);
+                            }
+                            _ => {
+                                hooks.fire_adapter_notify(&cx, &target, event.as_ref());
+                                adapter_mgr.notify_target(target, event);
+                            }
+                        }
                     }
 
                     // ---------- adapter control ----------
@@ -293,19 +339,25 @@ pub fn run(
                                 AdapterTarget::All         => adapter_mgr.start_all(&cx),
                                 AdapterTarget::Policy(p)   => adapter_mgr.start_by_policy(&cx, p),
                                 AdapterTarget::Name(n)     => adapter_mgr.start_by_name(&cx, n),
+                                #[allow(deprecated)]
                                 AdapterTarget::Topic(t)    => adapter_mgr.start_by_topic(&cx, t),
+                                AdapterTarget::Label(l)    => adapter_mgr.start_by_label(&cx, l),
                             },
                             AdapterControl::Stop(target) => match target {
                                 AdapterTarget::All         => adapter_mgr.stop_all(),
                                 AdapterTarget::Policy(p)   => adapter_mgr.stop_by_policy(p),
                                 AdapterTarget::Name(n)     => adapter_mgr.stop_by_name(n),
+                                #[allow(deprecated)]
                                 AdapterTarget::Topic(t)    => adapter_mgr.stop_by_topic(t),
+                                AdapterTarget::Label(l)    => adapter_mgr.stop_by_label(l),
                             },
                             AdapterControl::Restart(target) => match target {
                                 AdapterTarget::All         => adapter_mgr.restart_all(&cx),
                                 AdapterTarget::Policy(p)   => adapter_mgr.restart_by_policy(&cx, p),
                                 AdapterTarget::Name(n)     => adapter_mgr.restart_by_name(&cx, n),
+                                #[allow(deprecated)]
                                 AdapterTarget::Topic(t)    => adapter_mgr.restart_by_topic(&cx, t),
+                                AdapterTarget::Label(l)    => adapter_mgr.restart_by_label(&cx, l),
                             },
                         }
                     }
