@@ -476,4 +476,257 @@ impl Key {
     pub fn to_step_up(self) -> Option<InputStep> {
         self.to_scan().map(InputStep::KeyUp)
     }
+
+    /// Single source of truth: all known variants except `Custom`.
+    pub const ALL: &'static [Key] = &[
+        // Letters
+        Key::A,
+        Key::B,
+        Key::C,
+        Key::D,
+        Key::E,
+        Key::F,
+        Key::G,
+        Key::H,
+        Key::I,
+        Key::J,
+        Key::K,
+        Key::L,
+        Key::M,
+        Key::N,
+        Key::O,
+        Key::P,
+        Key::Q,
+        Key::R,
+        Key::S,
+        Key::T,
+        Key::U,
+        Key::V,
+        Key::W,
+        Key::X,
+        Key::Y,
+        Key::Z,
+        // Number row
+        Key::D0,
+        Key::D1,
+        Key::D2,
+        Key::D3,
+        Key::D4,
+        Key::D5,
+        Key::D6,
+        Key::D7,
+        Key::D8,
+        Key::D9,
+        // Function keys
+        Key::F1,
+        Key::F2,
+        Key::F3,
+        Key::F4,
+        Key::F5,
+        Key::F6,
+        Key::F7,
+        Key::F8,
+        Key::F9,
+        Key::F10,
+        Key::F11,
+        Key::F12,
+        // Modifiers
+        Key::LShift,
+        Key::RShift,
+        Key::LCtrl,
+        Key::RCtrl,
+        Key::LAlt,
+        Key::RAlt,
+        Key::LWin,
+        Key::RWin,
+        // Symbols / misc
+        Key::Space,
+        Key::Tab,
+        Key::Enter,
+        Key::Escape,
+        Key::Backspace,
+        Key::Minus,
+        Key::Equal,
+        Key::LBracket,
+        Key::RBracket,
+        Key::Semicolon,
+        Key::Apostrophe,
+        Key::Comma,
+        Key::Period,
+        Key::Slash,
+        Key::Backslash,
+        Key::Grave,
+        Key::CapsLock,
+        Key::Print,
+        Key::Pause,
+        // Navigation
+        Key::Insert,
+        Key::Delete,
+        Key::Home,
+        Key::End,
+        Key::PageUp,
+        Key::PageDown,
+        Key::ArrowUp,
+        Key::ArrowDown,
+        Key::ArrowLeft,
+        Key::ArrowRight,
+        // Numpad
+        Key::Np0,
+        Key::Np1,
+        Key::Np2,
+        Key::Np3,
+        Key::Np4,
+        Key::Np5,
+        Key::Np6,
+        Key::Np7,
+        Key::Np8,
+        Key::Np9,
+        Key::NpAdd,
+        Key::NpSubtract,
+        Key::NpMultiply,
+        Key::NpDivide,
+        Key::NpEnter,
+        Key::NpDecimal,
+        Key::NpLock,
+        // Menu
+        Key::Menu,
+    ];
+
+    /// Iterate all keys (excludes `Custom`).
+    #[inline]
+    pub fn iter() -> impl Iterator<Item = Key> + 'static {
+        Self::ALL.iter().copied()
+    }
+
+    #[inline]
+    pub fn to_token(self) -> &'static str {
+        use Key::*;
+        match self {
+            // letters
+            A => "a",
+            B => "b",
+            C => "c",
+            D => "d",
+            E => "e",
+            F => "f",
+            G => "g",
+            H => "h",
+            I => "i",
+            J => "j",
+            K => "k",
+            L => "l",
+            M => "m",
+            N => "n",
+            O => "o",
+            P => "p",
+            Q => "q",
+            R => "r",
+            S => "s",
+            T => "t",
+            U => "u",
+            V => "v",
+            W => "w",
+            X => "x",
+            Y => "y",
+            Z => "z",
+
+            // number row
+            D0 => "0",
+            D1 => "1",
+            D2 => "2",
+            D3 => "3",
+            D4 => "4",
+            D5 => "5",
+            D6 => "6",
+            D7 => "7",
+            D8 => "8",
+            D9 => "9",
+
+            // function keys
+            F1 => "f1",
+            F2 => "f2",
+            F3 => "f3",
+            F4 => "f4",
+            F5 => "f5",
+            F6 => "f6",
+            F7 => "f7",
+            F8 => "f8",
+            F9 => "f9",
+            F10 => "f10",
+            F11 => "f11",
+            F12 => "f12",
+
+            // modifiers
+            LShift => "lshift",
+            RShift => "rshift",
+            LCtrl => "lctrl",
+            RCtrl => "rctrl",
+            LAlt => "lalt",
+            RAlt => "ralt",
+            LWin => "lwin",
+            RWin => "rwin",
+
+            // symbols / misc
+            Space => "space",
+            Tab => "tab",
+            Enter => "enter",
+            Escape => "escape",
+            Backspace => "backspace",
+            Minus => "minus",
+            Equal => "equals",
+            LBracket => "lbracket",
+            RBracket => "rbracket",
+            Semicolon => "semicolon",
+            Apostrophe => "apostrophe",
+            Comma => "comma",
+            Period => "period",
+            Slash => "slash",
+            Backslash => "backslash",
+            Grave => "grave",
+            CapsLock => "capslock",
+            Print => "print",
+            Pause => "pause",
+
+            // navigation
+            Insert => "insert",
+            Delete => "delete",
+            Home => "home",
+            End => "end",
+            PageUp => "pgup",
+            PageDown => "pgdn",
+            ArrowUp => "up",
+            ArrowDown => "down",
+            ArrowLeft => "left",
+            ArrowRight => "right",
+
+            // numpad
+            Np0 => "np_0",
+            Np1 => "np_1",
+            Np2 => "np_2",
+            Np3 => "np_3",
+            Np4 => "np_4",
+            Np5 => "np_5",
+            Np6 => "np_6",
+            Np7 => "np_7",
+            Np8 => "np_8",
+            Np9 => "np_9",
+            NpAdd => "np_add",
+            NpSubtract => "np_subtract",
+            NpMultiply => "np_multiply",
+            NpDivide => "np_divide",
+            NpEnter => "np_enter",
+            NpDecimal => "np_period",
+            NpLock => "np_lock",
+
+            Menu => "menu",
+
+            // You generally shouldn't emit a token for `Custom`
+            Custom { .. } => "custom",
+        }
+    }
+
+    /// Convenience if you want the raw tokens directly.
+    pub fn iter_tokens() -> impl Iterator<Item = &'static str> {
+        Self::iter().map(|k| k.to_token())
+    }
 }
