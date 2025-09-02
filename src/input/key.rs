@@ -5,13 +5,17 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use super::types::{InputStep, Scan};
 
 /// Typed keys. Add more as you need; `Custom` lets you provide raw scancodes.
 /// Mapping is Windows-only right now (guarded with #[cfg(windows)]).
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord, EnumIter,
+)]
 pub enum Key {
     // Letters
     A,
@@ -134,6 +138,7 @@ pub enum Key {
 
     /// Raw scancode (Windows SetScanCode) + extended flag.
     /// Use to cover keys not yet in the enum.
+    #[strum(disabled)]
     Custom {
         scan: u16,
         extended: bool,
@@ -475,127 +480,6 @@ impl Key {
     }
     pub fn to_step_up(self) -> Option<InputStep> {
         self.to_scan().map(InputStep::KeyUp)
-    }
-
-    /// Single source of truth: all known variants except `Custom`.
-    pub const ALL: &'static [Key] = &[
-        // Letters
-        Key::A,
-        Key::B,
-        Key::C,
-        Key::D,
-        Key::E,
-        Key::F,
-        Key::G,
-        Key::H,
-        Key::I,
-        Key::J,
-        Key::K,
-        Key::L,
-        Key::M,
-        Key::N,
-        Key::O,
-        Key::P,
-        Key::Q,
-        Key::R,
-        Key::S,
-        Key::T,
-        Key::U,
-        Key::V,
-        Key::W,
-        Key::X,
-        Key::Y,
-        Key::Z,
-        // Number row
-        Key::D0,
-        Key::D1,
-        Key::D2,
-        Key::D3,
-        Key::D4,
-        Key::D5,
-        Key::D6,
-        Key::D7,
-        Key::D8,
-        Key::D9,
-        // Function keys
-        Key::F1,
-        Key::F2,
-        Key::F3,
-        Key::F4,
-        Key::F5,
-        Key::F6,
-        Key::F7,
-        Key::F8,
-        Key::F9,
-        Key::F10,
-        Key::F11,
-        Key::F12,
-        // Modifiers
-        Key::LShift,
-        Key::RShift,
-        Key::LCtrl,
-        Key::RCtrl,
-        Key::LAlt,
-        Key::RAlt,
-        Key::LWin,
-        Key::RWin,
-        // Symbols / misc
-        Key::Space,
-        Key::Tab,
-        Key::Enter,
-        Key::Escape,
-        Key::Backspace,
-        Key::Minus,
-        Key::Equal,
-        Key::LBracket,
-        Key::RBracket,
-        Key::Semicolon,
-        Key::Apostrophe,
-        Key::Comma,
-        Key::Period,
-        Key::Slash,
-        Key::Backslash,
-        Key::Grave,
-        Key::CapsLock,
-        Key::Print,
-        Key::Pause,
-        // Navigation
-        Key::Insert,
-        Key::Delete,
-        Key::Home,
-        Key::End,
-        Key::PageUp,
-        Key::PageDown,
-        Key::ArrowUp,
-        Key::ArrowDown,
-        Key::ArrowLeft,
-        Key::ArrowRight,
-        // Numpad
-        Key::Np0,
-        Key::Np1,
-        Key::Np2,
-        Key::Np3,
-        Key::Np4,
-        Key::Np5,
-        Key::Np6,
-        Key::Np7,
-        Key::Np8,
-        Key::Np9,
-        Key::NpAdd,
-        Key::NpSubtract,
-        Key::NpMultiply,
-        Key::NpDivide,
-        Key::NpEnter,
-        Key::NpDecimal,
-        Key::NpLock,
-        // Menu
-        Key::Menu,
-    ];
-
-    /// Iterate all keys (excludes `Custom`).
-    #[inline]
-    pub fn iter() -> impl Iterator<Item = Key> + 'static {
-        Self::ALL.iter().copied()
     }
 
     #[inline]
