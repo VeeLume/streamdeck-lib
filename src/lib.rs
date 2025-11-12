@@ -30,6 +30,7 @@ pub use crate::input::dsl::{
 pub use crate::input::key::Key;
 pub use crate::input::types::{InputStep, MouseButton, Scan};
 pub use crate::input::{Executor, InputSynth};
+pub use crate::launch::run_plugin;
 pub use crate::launch::{LaunchArgError, LaunchArgs, parse_from, parse_launch_args};
 pub use crate::logger::{init, init_with};
 pub use crate::plugin::Plugin;
@@ -54,6 +55,7 @@ pub mod prelude {
     };
     pub use crate::input::key::Key;
     pub use crate::input::types::{InputStep, MouseButton, Scan};
+    pub use crate::launch::run_plugin;
     pub use crate::launch::{LaunchArgError, parse_launch_args};
     pub use crate::logger::{init, init_with};
     pub use crate::plugin::Plugin;
