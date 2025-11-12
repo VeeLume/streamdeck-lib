@@ -59,7 +59,7 @@ fn run_inner(plugin: Plugin, args: LaunchArgs, url: &str) -> anyhow::Result<()> 
     // ---------- connect ----------
     info!("🔗 connecting websocket: {}", url);
 
-    let client = ClientBuilder::new(&url)?.connect_insecure()?;
+    let client = ClientBuilder::new(url)?.connect_insecure()?;
     let (mut reader, writer_raw) = client.split()?;
     let writer = Arc::new(Mutex::new(writer_raw));
 

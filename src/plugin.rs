@@ -9,22 +9,12 @@ use crate::hooks::AppHooks;
 use crate::sd_protocol::SdClient;
 
 /// The assembled plugin: actions, adapters, hooks, and extensions.
+#[derive(Default)]
 pub struct Plugin {
     actions: HashMap<ActionId, ActionFactory>,
     exts: Extensions,
     hooks: AppHooks,
     adapters: Vec<Arc<dyn Adapter + Send + Sync>>,
-}
-
-impl Default for Plugin {
-    fn default() -> Self {
-        Self {
-            actions: HashMap::new(),
-            exts: Extensions::default(),
-            hooks: AppHooks::default(),
-            adapters: Vec::new(),
-        }
-    }
 }
 
 impl Plugin {
@@ -66,7 +56,7 @@ impl Plugin {
     }
 
     /// Register a typed extension (chainable).
-    pub fn add_extension<T>(mut self, value: Arc<T>) -> Self
+    pub fn add_extension<T>(self, value: Arc<T>) -> Self
     where
         T: Send + Sync + 'static,
     {

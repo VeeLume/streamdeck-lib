@@ -10,8 +10,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 const DEFAULT_KEEP_RUNS: usize = 4;
 
 fn logs_dir(plugin_id: &str) -> io::Result<PathBuf> {
-    let base =
-        BaseDirs::new().ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no home dir"))?;
+    let base = BaseDirs::new().ok_or_else(|| io::Error::other("no home dir"))?;
     let dir = base.data_dir().join(plugin_id);
     fs::create_dir_all(&dir)?;
     Ok(dir)
@@ -80,7 +79,7 @@ pub fn init_with(plugin_id: &str, file_prefix: &str, keep_runs: usize) -> Worker
         .create(true)
         .append(true)
         .open(&file)
-        .unwrap_or_else(|e| panic!("failed to open log file {:?}: {e}", file));
+        .unwrap_or_else(|e| panic!("failed to open log file {file:?}: {e}"));
 
     let (nb_writer, guard) = non_blocking(file);
 
