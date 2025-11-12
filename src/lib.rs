@@ -11,7 +11,7 @@ mod hooks;
 pub mod input;
 mod launch;
 mod logger;
-mod plugin_builder;
+mod plugin;
 mod runtime;
 mod sd_protocol; // maybe this one stays public if it has submodules users need
 
@@ -30,16 +30,15 @@ pub use crate::input::dsl::{
 pub use crate::input::key::Key;
 pub use crate::input::types::{InputStep, MouseButton, Scan};
 pub use crate::input::{Executor, InputSynth};
-pub use crate::launch::{LaunchArgError, LaunchArgs, RunConfig, parse_from, parse_launch_args};
-pub use crate::logger::{ActionLog, ActionLogExt, FileLogger, Level, LoggerConfig};
-pub use crate::plugin_builder::{BuildError, PluginBuilder};
-pub use crate::runtime::run;
+pub use crate::launch::{LaunchArgError, LaunchArgs, parse_from, parse_launch_args};
+pub use crate::logger::{init, init_with};
+pub use crate::plugin::Plugin;
+pub use crate::runtime::run_with_defaults;
 pub use crate::sd_protocol::{
     Coordinates, DeviceInfo, SdClient, SdState, SetImagePayload, SetTitlePayload, Size,
     StreamDeckEvent, Target, TitleParameters, TriggerPayload,
 };
 
-// Prelude stays minimal and user-friendly
 pub mod prelude {
     pub use crate::actions::{Action, ActionFactory, ActionStatic};
     pub use crate::adapters::{
@@ -55,10 +54,10 @@ pub mod prelude {
     };
     pub use crate::input::key::Key;
     pub use crate::input::types::{InputStep, MouseButton, Scan};
-    pub use crate::launch::{LaunchArgError, RunConfig, parse_launch_args};
-    pub use crate::logger::{ActionLog, FileLogger, Level, LoggerConfig};
-    pub use crate::plugin_builder::{BuildError, PluginBuilder};
-    pub use crate::runtime::run;
+    pub use crate::launch::{LaunchArgError, parse_launch_args};
+    pub use crate::logger::{init, init_with};
+    pub use crate::plugin::Plugin;
+    pub use crate::runtime::run_with_defaults;
     pub use crate::sd_protocol::{SdClient, SdState, StreamDeckEvent, Target, views::*};
-    pub use crate::{debug, error, info, simple_action_factory, warn};
+    pub use crate::simple_action_factory;
 }

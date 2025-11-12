@@ -3,9 +3,7 @@ use crate::{
     adapters::{Adapter, AdapterHandle, StartPolicy},
     bus::Bus,
     context::Context,
-    debug, error,
     events::{AdapterTarget, ErasedTopic},
-    logger::ActionLog,
 };
 use crossbeam_channel::{Sender, unbounded};
 use std::{
@@ -13,6 +11,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use tracing::{debug, error};
 
 struct RunningAdapter {
     name: &'static str,
@@ -39,15 +38,10 @@ pub(crate) struct AdapterManager {
 
     // infra
     bus: Arc<dyn Bus>,
-    logger: Arc<dyn ActionLog>,
 }
 
 impl AdapterManager {
-    pub fn new(
-        adapters: &[Arc<dyn Adapter + Send + Sync + 'static>],
-        bus: Arc<dyn Bus>,
-        logger: Arc<dyn ActionLog>,
-    ) -> Self {
+    pub fn new(adapters: &[Arc<dyn Adapter + Send + Sync + 'static>], bus: Arc<dyn Bus>) -> Self {
         Self {
             registry: adapters.to_vec(),
             running: Vec::new(),
@@ -58,7 +52,6 @@ impl AdapterManager {
             app_stop_due: None,
             app_debounce: Duration::from_millis(250),
             bus,
-            logger,
         }
     }
 
@@ -94,9 +87,9 @@ impl AdapterManager {
                     self.by_label.entry(l).or_default().push(idx);
                 }
 
-                debug!(self.logger, "▶ started adapter: {}", name);
+                debug!("▶ started adapter: {}", name);
             }
-            Err(e) => error!(self.logger, "Failed to start adapter {}: {}", a.name(), e),
+            Err(e) => error!("Failed to start adapter {}: {}", a.name(), e),
         }
     }
 
@@ -140,7 +133,7 @@ impl AdapterManager {
                 new_running.push(r);
             } else {
                 r.handle.shutdown();
-                debug!(self.logger, "■ stopped adapter: {}", r.name);
+                debug!("■ stopped adapter: {}", r.name);
             }
         }
         self.running = new_running;
@@ -222,8 +215,6 @@ impl AdapterManager {
         match target {
             AdapterTarget::All => self.notify_all(note),
             AdapterTarget::Policy(p) => self.notify_policy(p, note),
-            #[allow(deprecated)]
-            AdapterTarget::Topic(t) => self.notify_topic_name(t, note),
             AdapterTarget::Name(n) => self.notify_name(n, note),
             AdapterTarget::Label(l) => self.notify_label(l, note),
         }
@@ -289,8 +280,8 @@ impl AdapterManager {
             // schedule a deferred stop
             self.app_stop_due = Some(Instant::now() + self.app_debounce);
             debug!(
-                self.logger,
-                "⏳ scheduling stop of OnAppLaunch adapters in {:?}", self.app_debounce
+                "⏳ scheduling stop of OnAppLaunch adapters in {:?}",
+                self.app_debounce
             );
         }
     }
@@ -301,10 +292,7 @@ impl AdapterManager {
             if Instant::now() >= due && self.apps_up == 0 {
                 self.stop_by_policy(StartPolicy::OnAppLaunch);
                 self.app_stop_due = None;
-                debug!(
-                    self.logger,
-                    "🛑 OnAppLaunch adapters stopped (no apps, debounced)"
-                );
+                debug!("🛑 OnAppLaunch adapters stopped (no apps, debounced)");
             }
         }
     }

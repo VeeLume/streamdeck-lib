@@ -3,7 +3,8 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{convert::TryFrom, sync::Arc};
+use std::convert::TryFrom;
+use tracing::trace;
 
 // =========================
 // Incoming: shared structs
@@ -962,36 +963,25 @@ pub fn serialize_outgoing(msg: &Outgoing) -> serde_json::Result<String> {
 
 use crossbeam_channel::Sender;
 
-use crate::{debug, events::RuntimeMsg, logger::ActionLog};
+use crate::events::RuntimeMsg;
 
 #[derive(Clone)]
 pub struct SdClient {
     tx: Sender<RuntimeMsg>,
     plugin_uuid: String,
-    logger: Arc<dyn ActionLog>,
-    log_websocket: bool,
 }
 
 impl SdClient {
-    pub(crate) fn new(
-        tx: Sender<RuntimeMsg>,
-        plugin_uuid: impl Into<String>,
-        logger: Arc<dyn ActionLog>,
-        log_websocket: bool,
-    ) -> Self {
+    pub(crate) fn new(tx: Sender<RuntimeMsg>, plugin_uuid: impl Into<String>) -> Self {
         Self {
             tx,
             plugin_uuid: plugin_uuid.into(),
-            logger,
-            log_websocket,
         }
     }
 
     #[inline]
     fn send(&self, o: Outgoing) {
-        if self.log_websocket {
-            debug!(self.logger, "📤 WebSocket outgoing: {:#?}", o);
-        }
+        trace!("📤 WebSocket outgoing: {:#?}", o);
         let _ = self.tx.send(RuntimeMsg::Outgoing(o));
     }
 

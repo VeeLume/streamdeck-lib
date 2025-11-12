@@ -2,7 +2,6 @@
 use crate::{
     context::Context,
     events::{AdapterControl, AdapterTarget, ErasedTopic},
-    logger::Level,
     sd_protocol::{DeviceInfo, Outgoing, StreamDeckEvent},
 };
 use std::sync::Arc;
@@ -23,7 +22,6 @@ pub enum HookEvent<'a> {
 
     // Runtime mirrors
     Outgoing(&'a Outgoing),
-    Log(Level, &'a str),
     ActionNotify(&'a ErasedTopic),
     AdapterNotify(&'a AdapterTarget, &'a ErasedTopic),
     AdapterControl(&'a AdapterControl),
@@ -77,10 +75,6 @@ impl AppHooks {
     #[inline]
     pub fn fire_outgoing(&self, cx: &Context, m: &Outgoing) {
         self.fire(cx, &HookEvent::Outgoing(m));
-    }
-    #[inline]
-    pub fn fire_log(&self, cx: &Context, lvl: Level, msg: &str) {
-        self.fire(cx, &HookEvent::Log(lvl, msg));
     }
     #[inline]
     pub fn fire_action_notify(&self, cx: &Context, ev: &ErasedTopic) {

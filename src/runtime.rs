@@ -2,49 +2,28 @@
 use std::{
     collections::VecDeque,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
 
-use crossbeam_channel::{select, unbounded};
-use websocket::{ClientBuilder, OwnedMessage};
-
 use crate::{
-    ActionTarget,
     action_manager::{ActionManager, dispatch},
     adapters_manager::AdapterManager,
     bus::Emitter,
-    debug, error,
     events::{AdapterControl, AdapterTarget, RuntimeMsg},
     hooks::AppHooks,
-    info,
-    launch::{LaunchArgs, RunConfig},
-    logger::{ActionLog, Level},
-    plugin_builder::Plugin,
+    launch::LaunchArgs,
+    plugin::Plugin,
     sd_protocol::{self, SdClient, StreamDeckEvent, parse_incoming_owned, serialize_outgoing},
-    warn,
 };
-
-fn warn_topic_target_once(logger: &dyn ActionLog) {
-    static DID_WARN: AtomicBool = AtomicBool::new(false);
-    if !DID_WARN.swap(true, Ordering::Relaxed) {
-        warn!(
-            logger,
-            "Deprecated: ActionTarget::Topic / AdapterTarget::Topic used. \
-             This path now behaves like Bus::publish(...). \
-             Migrate to BusTyped::publish_t(...)."
-        );
-    }
-}
+use crossbeam_channel::{select, unbounded};
+use tracing::{debug, error, info, trace, warn};
+use websocket::{ClientBuilder, OwnedMessage};
 
 fn drain_outgoing(
     outq: &mut VecDeque<sd_protocol::Outgoing>,
     writer: &Arc<Mutex<websocket::sender::Writer<std::net::TcpStream>>>,
-    logger: &Arc<dyn ActionLog>,
 ) {
     const DRAIN_PER_TICK: usize = 8;
     for _ in 0..DRAIN_PER_TICK {
@@ -55,31 +34,30 @@ fn drain_outgoing(
             Ok(text) => {
                 if let Ok(mut w) = writer.lock() {
                     if let Err(e) = w.send_message(&OwnedMessage::Text(text)) {
-                        error!(logger, "❌ websocket send: {:?}", e);
+                        error!("❌ websocket send: {:?}", e);
                         outq.push_front(msg);
                         break;
                     }
                 } else {
-                    error!(logger, "❌ writer mutex poisoned");
+                    error!("❌ writer mutex poisoned");
                     outq.push_front(msg);
                     break;
                 }
             }
-            Err(e) => error!(logger, "❌ serialize outgoing: {:?}", e),
+            Err(e) => error!("❌ serialize outgoing: {:?}", e),
         }
     }
 }
 
-/// Run the plugin runtime (non-generic; notifications handled dynamically if you need them).
-pub fn run(
-    plugin: Plugin,
-    args: LaunchArgs,
-    logger: Arc<dyn ActionLog>,
-    cfg: RunConfig,
-) -> anyhow::Result<()> {
+pub fn run_with_defaults(plugin: Plugin, args: LaunchArgs) -> anyhow::Result<()> {
+    let url = crate::launch::ws_url(args.port);
+    run_inner(plugin, args, &url)
+}
+
+/// Run the plugin runtime (non-generic;
+fn run_inner(plugin: Plugin, args: LaunchArgs, url: &str) -> anyhow::Result<()> {
     // ---------- connect ----------
-    let url = (cfg.url_fn)(args.port);
-    info!(logger, "🔗 connecting websocket: {}", url);
+    info!("🔗 connecting websocket: {}", url);
 
     let client = ClientBuilder::new(&url)?.connect_insecure()?;
     let (mut reader, writer_raw) = client.split()?;
@@ -90,24 +68,13 @@ pub fn run(
 
     // ---------- sd client + context ----------
     // SdClient should internally do: tx.send(RuntimeMsg::Outgoing(...))
-    let sd = Arc::new(SdClient::new(
-        rt_tx.clone(),
-        args.plugin_uuid.clone(),
-        logger.clone(),
-        cfg.log_websocket,
-    ));
+    let sd = Arc::new(SdClient::new(rt_tx.clone(), args.plugin_uuid.clone()));
 
     let emitter = Emitter::new(rt_tx.clone());
     let bus = Arc::new(emitter);
 
     // Now build the Context with enriched Extensions
-    let cx = plugin.make_context(
-        Arc::clone(&sd),
-        Arc::clone(&logger),
-        args.plugin_uuid.clone(),
-        plugin.exts(),
-        bus,
-    );
+    let cx = plugin.make_context(Arc::clone(&sd), args.plugin_uuid.clone(), bus);
 
     // ---------- register with Stream Deck ----------
     {
@@ -120,7 +87,7 @@ pub fn run(
             .map_err(|_| anyhow::anyhow!("writer mutex poisoned"))?
             .send_message(&OwnedMessage::Text(register_msg.to_string()))?;
     }
-    info!(logger, "✅ registered: {}", args.plugin_uuid);
+    info!("✅ registered: {}", args.plugin_uuid);
 
     // ---------- fire init hooks ----------
     plugin.hooks().fire_init(&cx);
@@ -129,7 +96,6 @@ pub fn run(
 
     // ---------- reader thread (websocket -> RuntimeMsg::Incoming) ----------
     {
-        let logger = Arc::clone(&logger);
         let tx = rt_tx.clone();
         let writer_for_reader = Arc::clone(&writer);
 
@@ -148,7 +114,6 @@ pub fn run(
                 for incoming in reader.incoming_messages() {
                     match incoming {
                         Ok(OwnedMessage::Text(text)) => {
-                            // Parse ONCE, move out of the Map without cloning.
                             let parsed = serde_json::from_str::<
                                 serde_json::Map<String, serde_json::Value>,
                             >(&text)
@@ -157,21 +122,12 @@ pub fn run(
 
                             match parsed {
                                 Ok(ev) => {
-                                    if cfg.log_websocket {
-                                        debug!(logger, "📥 WebSocket incoming: {:#?}", ev);
-                                        // No re-parse: log the raw string (truncated)
-                                        debug!(
-                                            logger,
-                                            "📥 WebSocket raw: {}",
-                                            truncate_for_log(&text, 4096)
-                                        );
-                                    }
+                                    trace!("📥 WebSocket incoming: {:#?}", ev);
+                                    trace!("📥 WebSocket raw: {}", truncate_for_log(&text, 4096));
                                     let _ = tx.send(RuntimeMsg::Incoming(ev));
                                 }
                                 Err(err) => {
-                                    // Keep raw on failures (truncated)
                                     warn!(
-                                        logger,
                                         "⚠️ unrecognized SD event: {} | raw = {}",
                                         err,
                                         truncate_for_log(&text, 4096)
@@ -180,7 +136,7 @@ pub fn run(
                             }
                         }
                         Ok(OwnedMessage::Close(_)) => {
-                            debug!(logger, "🔌 websocket close received");
+                            debug!("🔌 websocket close received");
                             let _ = tx.send(RuntimeMsg::Exit);
                             break;
                         }
@@ -188,29 +144,29 @@ pub fn run(
                             if let Ok(mut w) = writer_for_reader.lock() {
                                 let _ = w.send_message(&OwnedMessage::Pong(payload));
                             }
-                            debug!(logger, "🔄 websocket ping received");
+                            debug!("🔄 websocket ping received");
                         }
                         Ok(OwnedMessage::Pong(_)) => {
-                            debug!(logger, "🔄 websocket pong received");
+                            debug!("🔄 websocket pong received");
                         }
                         Ok(OwnedMessage::Binary(_)) => {
                             // If you want, handle Binary similarly (see commented code above)
-                            warn!(logger, "⚠️ unrecognized binary message");
+                            warn!("⚠️ unrecognized binary message");
                         }
                         Err(e) => {
-                            error!(logger, "❌ websocket read: {:?}", e);
+                            error!("❌ websocket read: {:?}", e);
                             break;
                         }
                     }
                 }
             })) {
-                error!(logger, "❌ reader thread panicked: {:?}", p);
+                error!("❌ reader thread panicked: {:?}", p);
             }
         });
     }
 
     // ---------- adapters ----------
-    let mut adapter_mgr = AdapterManager::new(plugin.adapters(), cx.bus(), Arc::clone(&logger));
+    let mut adapter_mgr = AdapterManager::new(plugin.adapters(), cx.bus());
 
     // Start adapters with Eager policy right away
     adapter_mgr.start_by_policy(&cx, crate::adapters::StartPolicy::Eager);
@@ -271,18 +227,7 @@ pub fn run(
                         outq.push_back(msg);
                         if was_empty {
                             // quick flush, more than 8 messages per tick is unlikely
-                            drain_outgoing(&mut outq, &writer, &logger);
-                        }
-                    }
-
-                    // ---------- logs ----------
-                    Ok(Log { msg, level }) => {
-                        hooks.fire_log(&cx, level, &msg);
-                        match level {
-                            Level::Debug => debug!(logger, "{}", msg),
-                            Level::Info  => info!(logger,  "{}", msg),
-                            Level::Warn  => warn!(logger,  "{}", msg),
-                            Level::Error => error!(logger, "{}", msg),
+                            drain_outgoing(&mut outq, &writer);
                         }
                     }
 
@@ -295,40 +240,14 @@ pub fn run(
                     }
                     // ---------- typed action notify ----------
                     Ok(ActionNotify { target, event }) => {
-                        match target {
-                            #[allow(deprecated)]
-                            ActionTarget::Topic(_t) => {
-                                warn_topic_target_once(logger.as_ref());
-                                // behave like publish: send to actions and adapters subscribed to this topic
-                                let topic = event.name();
-                                // actions
-                                mgr.notify_topic(&cx, topic, Arc::clone(&event));
-                                // adapters
-                                adapter_mgr.notify_topic_name(topic, event);
-                            }
-                            _ => {
-                                hooks.fire_action_notify(&cx, &event);
-                                mgr.notify_target(&cx, target, event);
-                            }
-                        }
+                        hooks.fire_action_notify(&cx, &event);
+                        mgr.notify_target(&cx, target, event);
                     }
 
                     // ---------- typed adapter notify ----------
                     Ok(AdapterNotify { target, event }) => {
-                        match target {
-                            #[allow(deprecated)]
-                            AdapterTarget::Topic(_t) => {
-                                warn_topic_target_once(logger.as_ref());
-                                let topic = event.name();
-                                // fan-out like publish
-                                mgr.notify_topic(&cx, topic, Arc::clone(&event));
-                                adapter_mgr.notify_topic_name(topic, event);
-                            }
-                            _ => {
-                                hooks.fire_adapter_notify(&cx, &target, event.as_ref());
-                                adapter_mgr.notify_target(target, event);
-                            }
-                        }
+                        hooks.fire_adapter_notify(&cx, &target, event.as_ref());
+                        adapter_mgr.notify_target(target, event);
                     }
 
                     // ---------- adapter control ----------
@@ -339,24 +258,18 @@ pub fn run(
                                 AdapterTarget::All         => adapter_mgr.start_all(&cx),
                                 AdapterTarget::Policy(p)   => adapter_mgr.start_by_policy(&cx, p),
                                 AdapterTarget::Name(n)     => adapter_mgr.start_by_name(&cx, n),
-                                #[allow(deprecated)]
-                                AdapterTarget::Topic(t)    => adapter_mgr.start_by_topic(&cx, t),
                                 AdapterTarget::Label(l)    => adapter_mgr.start_by_label(&cx, l),
                             },
                             AdapterControl::Stop(target) => match target {
                                 AdapterTarget::All         => adapter_mgr.stop_all(),
                                 AdapterTarget::Policy(p)   => adapter_mgr.stop_by_policy(p),
                                 AdapterTarget::Name(n)     => adapter_mgr.stop_by_name(n),
-                                #[allow(deprecated)]
-                                AdapterTarget::Topic(t)    => adapter_mgr.stop_by_topic(t),
                                 AdapterTarget::Label(l)    => adapter_mgr.stop_by_label(l),
                             },
                             AdapterControl::Restart(target) => match target {
                                 AdapterTarget::All         => adapter_mgr.restart_all(&cx),
                                 AdapterTarget::Policy(p)   => adapter_mgr.restart_by_policy(&cx, p),
                                 AdapterTarget::Name(n)     => adapter_mgr.restart_by_name(&cx, n),
-                                #[allow(deprecated)]
-                                AdapterTarget::Topic(t)    => adapter_mgr.restart_by_topic(&cx, t),
                                 AdapterTarget::Label(l)    => adapter_mgr.restart_by_label(&cx, l),
                             },
                         }
@@ -365,19 +278,19 @@ pub fn run(
                     // ---------- exit ----------
                     Ok(Exit) => {
                         hooks.fire_exit(&cx);
-                        info!(logger, "🔚 runtime exit requested");
+                        info!( "🔚 runtime exit requested");
                         break;
                     }
 
                     Err(err) => {
-                        error!(logger, "❌ runtime channel error: {:?}", err);
+                        error!( "❌ runtime channel error: {:?}", err);
                         break;
                     }, // bus closed
                 }
             }
 
             default(Duration::from_millis(100)) => {
-                drain_outgoing(&mut outq, &writer, &logger);
+                drain_outgoing(&mut outq, &writer);
                 hooks.fire_tick(&cx);
                 adapter_mgr.tick();
             }
@@ -387,7 +300,7 @@ pub fn run(
     // ---------- shutdown ----------
     adapter_mgr.shutdown();
 
-    info!(logger, "🔚 runtime shutdown complete");
+    info!("🔚 runtime shutdown complete");
 
     Ok(())
 }

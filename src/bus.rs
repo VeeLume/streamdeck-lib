@@ -4,7 +4,6 @@ use std::sync::Arc;
 use crate::{
     adapters::StartPolicy,
     events::{ActionTarget, AdapterControl, AdapterTarget, ErasedTopic, RuntimeMsg, TopicId},
-    logger::Level,
     sd_protocol::Outgoing,
 };
 
@@ -12,9 +11,6 @@ use crate::{
 pub trait Bus: Send + Sync {
     // Stream Deck out
     fn sd(&self, msg: Outgoing);
-
-    // Logging
-    fn log(&self, msg: &str, level: Level);
 
     // Unified notifies (erased payload + target)
     fn action_notify(&self, target: ActionTarget, event: Arc<ErasedTopic>);
@@ -40,13 +36,6 @@ impl Emitter {
 impl Bus for Emitter {
     fn sd(&self, msg: Outgoing) {
         let _ = self.tx.send(RuntimeMsg::Outgoing(msg));
-    }
-
-    fn log(&self, msg: &str, level: Level) {
-        let _ = self.tx.send(RuntimeMsg::Log {
-            msg: msg.to_string(),
-            level,
-        });
     }
 
     fn action_notify(&self, target: ActionTarget, event: Arc<ErasedTopic>) {

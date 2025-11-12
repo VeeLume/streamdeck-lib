@@ -6,8 +6,8 @@ use std::{
 };
 
 use serde_json::{Map, Value};
+use tracing::error;
 
-use crate::logger::{ActionLog, Level};
 use crate::sd_protocol::SdClient;
 
 // ======================
@@ -20,15 +20,13 @@ use crate::sd_protocol::SdClient;
 #[derive(Clone)]
 pub struct GlobalSettings {
     sd: Arc<SdClient>,
-    log: Arc<dyn ActionLog>,
     map: Arc<RwLock<Map<String, Value>>>,
 }
 
 impl GlobalSettings {
-    pub(crate) fn new(sd: Arc<SdClient>, log: Arc<dyn ActionLog>) -> Self {
+    pub(crate) fn new(sd: Arc<SdClient>) -> Self {
         Self {
             sd,
-            log,
             map: Arc::new(RwLock::new(Map::new())),
         }
     }
@@ -42,9 +40,8 @@ impl GlobalSettings {
             Ok(mut w) => {
                 *w = from_sd;
             }
-            Err(_) => self.log.log_level(
-                Level::Error,
-                "GlobalSettings: write lock poisoned while hydrating from SD; keeping old cache",
+            Err(_) => error!(
+                "GlobalSettings: write lock poisoned while hydrating from SD; keeping old cache"
             ),
         }
     }
@@ -56,10 +53,7 @@ impl GlobalSettings {
         match self.map.read() {
             Ok(r) => r.clone(),
             Err(_) => {
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: read lock poisoned during snapshot; returning empty map",
-                );
+                error!("GlobalSettings: read lock poisoned during snapshot; returning empty map");
                 Map::new()
             }
         }
@@ -70,10 +64,7 @@ impl GlobalSettings {
         match self.map.read() {
             Ok(r) => r.get(key).cloned(),
             Err(_) => {
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: read lock poisoned during get; returning None",
-                );
+                error!("GlobalSettings: read lock poisoned during get; returning None");
                 None
             }
         }
@@ -90,12 +81,7 @@ impl GlobalSettings {
                     }
                 }
             }
-            Err(_) => {
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: read lock poisoned during get_many; returning empty",
-                );
-            }
+            Err(_) => error!("GlobalSettings: read lock poisoned during get_many; returning empty"),
         }
         out
     }
@@ -180,9 +166,8 @@ impl GlobalSettings {
                 Some(ret)
             }
             Err(_) => {
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: write lock poisoned in with_mut; skipping mutation & push",
+                error!(
+                    "GlobalSettings: write lock poisoned during with_mut; skipping mutation & push"
                 );
                 None
             }
@@ -202,9 +187,8 @@ impl GlobalSettings {
                 Some(w.clone())
             }
             Err(_) => {
-                self.log.log_level(
-                    Level::Error,
-                    "GlobalSettings: write lock poisoned; skipping mutation & push",
+                error!(
+                    "GlobalSettings: write lock poisoned during mutation; skipping mutation & push"
                 );
                 None
             }
@@ -269,7 +253,6 @@ impl Extensions {
 #[derive(Clone)]
 pub struct Context {
     sd: Arc<SdClient>,
-    log: Arc<dyn ActionLog>,
     plugin_uuid: String,
     globals: GlobalSettings,
     exts: Extensions,
@@ -279,15 +262,13 @@ pub struct Context {
 impl Context {
     pub fn new(
         sd: Arc<SdClient>,
-        log: Arc<dyn ActionLog>,
         plugin_uuid: String,
         exts: Extensions,
         bus: Arc<dyn crate::bus::Bus>,
     ) -> Self {
-        let globals = GlobalSettings::new(Arc::clone(&sd), Arc::clone(&log));
+        let globals = GlobalSettings::new(Arc::clone(&sd));
         Self {
             sd,
-            log,
             plugin_uuid,
             globals,
             exts,
@@ -300,9 +281,6 @@ impl Context {
     }
     pub fn bus(&self) -> Arc<dyn crate::bus::Bus> {
         Arc::clone(&self.bus)
-    }
-    pub fn log(&self) -> Arc<dyn ActionLog> {
-        Arc::clone(&self.log)
     }
     pub fn uuid(&self) -> &str {
         &self.plugin_uuid

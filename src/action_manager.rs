@@ -5,7 +5,7 @@ use crate::{
     actions::{Action, ActionFactory, ActionId},
     context::Context,
     events::{ActionTarget, ErasedTopic},
-    plugin_builder::Plugin,
+    plugin::Plugin,
     sd_protocol::{StreamDeckEvent, views},
 };
 
@@ -112,18 +112,6 @@ impl ActionManager {
                 for ((aid, ctx), a) in self.instances.iter_mut() {
                     if aid == action_id {
                         a.on_notify(cx, ctx, event.as_ref());
-                    }
-                }
-            }
-            #[allow(deprecated)]
-            ActionTarget::Topic(topic_name) => {
-                if let Some(keys) = self.by_topic.get(topic_name) {
-                    // clone keys to avoid borrowing self mutably twice
-                    let keys = keys.clone();
-                    for (aid, ctx) in keys {
-                        if let Some(a) = self.instances.get_mut(&(aid.clone(), ctx.clone())) {
-                            a.on_notify(cx, &ctx, event.as_ref());
-                        }
                     }
                 }
             }

@@ -9,57 +9,6 @@ pub struct LaunchArgs {
     pub register_event: String,
 }
 
-/// Plugin runtime configuration knobs.
-#[derive(Clone)]
-pub struct RunConfig {
-    /// Optional custom websocket URL builder (useful for tests).
-    pub url_fn: std::sync::Arc<dyn (Fn(u16) -> String) + Send + Sync>,
-    pub log_websocket: bool,
-}
-
-impl Default for RunConfig {
-    fn default() -> Self {
-        Self {
-            url_fn: std::sync::Arc::new(|port| format!("ws://127.0.0.1:{port}")),
-            log_websocket: false,
-        }
-    }
-}
-
-impl fmt::Debug for RunConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RunConfig")
-            .field("log_websocket", &self.log_websocket)
-            .finish_non_exhaustive()
-    }
-}
-
-impl RunConfig {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set a custom websocket URL builder function.
-    pub fn with_url_fn<F>(mut self, url_fn: F) -> Self
-    where
-        F: Fn(u16) -> String + Send + Sync + 'static,
-    {
-        self.url_fn = std::sync::Arc::new(url_fn);
-        self
-    }
-
-    /// Set a custom URL builder function.
-    pub fn ws_url(&self, port: u16) -> String {
-        (self.url_fn)(port)
-    }
-
-    /// Enable or disable logging of incoming websocket messages.
-    pub fn set_log_websocket(mut self, enable: bool) -> Self {
-        self.log_websocket = enable;
-        self
-    }
-}
-
 /// Errors when parsing Stream Deck launch flags.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
@@ -118,4 +67,33 @@ fn value_after<'a>(argv: &'a [String], flag: &str) -> Option<&'a str> {
         .position(|a| a == flag)
         .and_then(|i| argv.get(i + 1))
         .map(|s| s.as_str())
+}
+
+/// Build the websocket URL. Honors optional env overrides for tests/tools:
+/// - SD_WS_SCHEME (default: "ws")
+/// - SD_WS_HOST   (default: "127.0.0.1")
+pub fn ws_url(port: u16) -> String {
+    let scheme = env::var("SD_WS_SCHEME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "ws".into());
+    let host = env::var("SD_WS_HOST")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "127.0.0.1".into());
+    format!("{scheme}://{host}:{port}")
+}
+
+/// Batteries-included entrypoint for binaries:
+/// - parses args
+/// - calls the runtime with defaults (URL + log_ws from env)
+///
+/// Usage in your `main`:
+/// ```no_run
+/// let _guard = your_crate::telemetry::init("your_plugin_id");
+/// your_crate::launch::run_plugin(build_plugin())?;
+/// ```
+pub fn run_plugin(plugin: crate::plugin::Plugin) -> anyhow::Result<()> {
+    let args = parse_launch_args()?;
+    crate::runtime::run_with_defaults(plugin, args)
 }

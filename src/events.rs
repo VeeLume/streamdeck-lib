@@ -1,6 +1,5 @@
 use crate::{
     adapters::StartPolicy,
-    logger::Level,
     sd_protocol::{Outgoing, StreamDeckEvent},
 };
 use std::{any::Any, marker::PhantomData, sync::Arc};
@@ -10,9 +9,6 @@ use std::{any::Any, marker::PhantomData, sync::Arc};
 pub enum AdapterTarget {
     All,
     Policy(StartPolicy),
-    /// Deprecated: use `Label` for lifecycle; use `publish_t` for messaging.
-    #[deprecated(note = "Use AdapterTarget::Label for start/stop; use publish_t for pub/sub")]
-    Topic(&'static str),
     Name(&'static str),
     Label(&'static str),
 }
@@ -23,11 +19,6 @@ impl AdapterTarget {
     }
     pub fn policy(p: StartPolicy) -> Self {
         Self::Policy(p)
-    }
-    #[deprecated(note = "Use AdapterTarget::Label for lifecycle")]
-    pub fn topic(t: &'static str) -> Self {
-        #[allow(deprecated)]
-        Self::Topic(t)
     }
     pub fn name(n: &'static str) -> Self {
         Self::Name(n)
@@ -42,8 +33,6 @@ impl AdapterTarget {
 pub enum ActionTarget {
     All,
     Context(String),
-    #[deprecated(note = "Use Bus::publish_t(...) instead")]
-    Topic(&'static str),
     Id(&'static str),
 }
 
@@ -53,11 +42,6 @@ impl ActionTarget {
     }
     pub fn context(id: impl Into<String>) -> Self {
         Self::Context(id.into())
-    }
-    #[deprecated(note = "Use Bus::publish_t(...) instead")]
-    pub fn topic(t: &'static str) -> Self {
-        #[allow(deprecated)]
-        Self::Topic(t)
     }
     pub fn id(n: &'static str) -> Self {
         Self::Id(n)
@@ -131,15 +115,8 @@ impl std::fmt::Debug for ErasedTopic {
 }
 
 pub(crate) enum RuntimeMsg {
-    /// Outgoing message to send to the Stream Deck.
     Outgoing(Outgoing),
-    /// Incoming message from the Stream Deck.
     Incoming(StreamDeckEvent),
-    /// Log message from a worker thread.
-    Log {
-        msg: String,
-        level: Level,
-    },
     Publish(Arc<ErasedTopic>),
     ActionNotify {
         target: ActionTarget,
